@@ -48,6 +48,8 @@ sim_data <- tibble(
   time_from_infection = time_sample - time_infection
 )
 
+write_csv(sim_data, "examples/ex1/sim-data.csv")
+
 titre_plot <- sim_data %>%
   select(pid, time_from_infection, titre_actual, titre_censored) %>%
   pivot_longer(contains("titre"), names_to = "type", values_to = "titre") %>%
