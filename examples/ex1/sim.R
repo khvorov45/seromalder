@@ -74,3 +74,15 @@ titre_plot <- sim_data %>%
   ), color = "red")
 
 ggsave("examples/ex1/plot.pdf", titre_plot, width = 15, height = 10, units = "cm")
+
+dyn.load("build/seromalder.so")
+.C(
+  "sml_r_mcmc",
+  n_individuals = 2L,
+  logtitres = c(4, 6), times_sample = c(50, 60), times_infection = c(70, 80),
+  start_short_term_boost = 1, start_long_term_boost = 1,
+  start_time_to_peak = 1, start_time_to_wane = 1,
+  iterations = 10L,
+  out_long_term_boost = rep(0, 10), out_short_term_boost = rep(0, 10),
+  out_time_to_peak = rep(0, 10), out_time_to_wane = rep(0, 10)
+)
