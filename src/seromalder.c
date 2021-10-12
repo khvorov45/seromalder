@@ -60,6 +60,7 @@ sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
 
 void
 sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
+
     SmlParameters pars_cur = *pars_init;
 
     for (i32 iteration = 0; iteration < output->n_iterations; iteration++) {
@@ -91,8 +92,9 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
 
             f64 deviation = predicted_titre - row->logtitre;
             sum_of_squares += deviation * deviation;
-        }
+        } // NOTE(sen) for (individual)
 
         output->out[iteration] = pars_cur;
-    }
+
+    } // NOTE(sen) for (iteration)
 }
