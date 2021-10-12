@@ -14,6 +14,13 @@ typedef struct SmlInput {
     f64* times_infection;
 } SmlInput;
 
+typedef struct SmlParameters {
+    f64 long_term_boost;
+    f64 short_term_boost;
+    f64 time_to_peak;
+    f64 time_to_wane;
+} SmlParameters;
+
 u64
 sml_required_input_bytes(u64 n_individuals) {
     u64 input_arrays_per_individual = (sizeof(SmlInput) - sizeof(u64)) / sizeof(void*);
@@ -43,16 +50,12 @@ sml_new_input_alloc(u64 n_individuals, SmlAllocator* allocator) {
 void
 sml_mcmc(
     SmlInput input,
-    f64 start_long_term_boost, f64 start_short_term_boost,
-    f64 start_time_to_peak, f64 start_time_to_wane,
+    SmlParameters pars_init,
     i32 iterations,
     f64* out_long_term_boost, f64* out_short_term_boost,
     f64* out_start_time_to_peak, f64* out_time_to_wane
 ) {
-    f64 cur_long_term_boost = start_long_term_boost;
-    f64 cur_short_term_boost = start_short_term_boost;
-    f64 cur_time_to_peak = start_time_to_peak;
-    f64 cur_time_to_wane = start_time_to_wane;
+    SmlParameters pars_cur = pars_init;
 
     for (i32 iteration = 0; iteration < iterations; iteration++) {
 
@@ -63,20 +66,20 @@ sml_mcmc(
 
             f64 time_sample = input.times_sample[individual_index];
             f64 time_infection = input.times_infection[individual_index];
-            f64 time_peak = time_infection + cur_time_to_peak;
-            f64 time_wane = time_peak + cur_time_to_wane;
+            f64 time_peak = time_infection + pars_cur.time_to_peak;
+            f64 time_wane = time_peak + pars_cur.time_to_wane;
 
             f64 predicted_titre;
             if (time_sample < time_infection) {
                 predicted_titre = 2.321928;
             } else if (time_sample < time_peak) {
                 predicted_titre = 2.321928 +
-                    (cur_long_term_boost + cur_short_term_boost) * (time_sample - time_infection) / cur_time_to_peak;
+                    (pars_cur.long_term_boost + pars_cur.short_term_boost) * (time_sample - time_infection) / pars_cur.time_to_peak;
             } else if (time_sample < time_wane) {
-                predicted_titre = 2.321928 + cur_long_term_boost +
-                    cur_short_term_boost * (1 - (time_sample - time_peak) / cur_time_to_wane);
+                predicted_titre = 2.321928 + pars_cur.long_term_boost +
+                    pars_cur.short_term_boost * (1 - (time_sample - time_peak) / pars_cur.time_to_wane);
             } else {
-                predicted_titre = 2.321928 + cur_long_term_boost;
+                predicted_titre = 2.321928 + pars_cur.long_term_boost;
             }
 
             f64 deviation = predicted_titre - input.logtitres[individual_index];

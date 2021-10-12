@@ -9,10 +9,12 @@ main() {
     input.logtitres[0] = 2.321928;
     input.times_sample[0] = 20;
     input.times_infection[0] = 30;
-    f64 start_long_term_boost = 0;
-    f64 start_short_term_boost = 0;
-    f64 start_time_to_peak = 14;
-    f64 start_time_to_wane = 50;
+    SmlParameters pars_init = {
+        .long_term_boost = 0,
+        .short_term_boost = 0,
+        .time_to_peak = 14,
+        .time_to_wane = 50
+    };
     i32 iterations = 1;
     f64 out_long_term_boost;
     f64 out_short_term_boost;
@@ -21,10 +23,7 @@ main() {
 
     sml_mcmc(
         input,
-        start_long_term_boost,
-        start_short_term_boost,
-        start_time_to_peak,
-        start_time_to_wane,
+        pars_init,
         iterations,
         &out_long_term_boost,
         &out_short_term_boost,
