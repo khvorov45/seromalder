@@ -4,6 +4,7 @@ typedef int32_t i32;
 typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
+typedef i32 b32;
 
 typedef void* SmlAllocator(u64 size);
 
@@ -58,43 +59,73 @@ sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
     return output;
 }
 
+f64
+sml_get_sum_of_squares(SmlInput* input, SmlParameters* pars) {
+
+    f64 result = 0;
+
+    for (i32 individual_index = 0;
+        individual_index < input->n_individuals;
+        individual_index++) {
+
+        SmlInputRow* row = input->data + individual_index;
+
+        f64 time_sample = row->time_sample;
+        f64 time_infection = row->time_infection;
+        f64 time_peak = time_infection + pars->time_to_peak;
+        f64 time_wane = time_peak + pars->time_to_wane;
+
+        f64 predicted_titre;
+        if (time_sample < time_infection) {
+            predicted_titre = 2.321928;
+        } else if (time_sample < time_peak) {
+            predicted_titre = 2.321928 +
+                (pars->long_term_boost + pars->short_term_boost) *
+                (time_sample - time_infection) / pars->time_to_peak;
+        } else if (time_sample < time_wane) {
+            predicted_titre = 2.321928 + pars->long_term_boost +
+                pars->short_term_boost * (1 - (time_sample - time_peak) / pars->time_to_wane);
+        } else {
+            predicted_titre = 2.321928 + pars->long_term_boost;
+        }
+
+        f64 deviation = predicted_titre - row->logtitre;
+        result += deviation * deviation;
+    } // NOTE(sen) for (individual)
+
+    return result;
+}
+
+f64 sml_rnorm(f64 mean, f64 sd) {
+    return mean;
+}
+
+b32 sml_rbern(f64 prop) {
+    return 0;
+}
+
 void
 sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
 
     SmlParameters pars_cur = *pars_init;
+    f64 sum_of_squares_cur = sml_get_sum_of_squares(input, &pars_cur);
 
     for (i32 iteration = 0; iteration < output->n_iterations; iteration++) {
 
-        f64 sum_of_squares = 0;
-        for (i32 individual_index = 0;
-            individual_index < input->n_individuals;
-            individual_index++) {
+        SmlParameters pars_next;
+        pars_next.long_term_boost = sml_rnorm(pars_cur.long_term_boost, 1);
+        pars_next.short_term_boost = sml_rnorm(pars_cur.short_term_boost, 1);
+        pars_next.time_to_peak = sml_rnorm(pars_cur.time_to_peak, 1);
+        pars_next.time_to_wane = sml_rnorm(pars_cur.time_to_wane, 1);
 
-            SmlInputRow* row = input->data + individual_index;
+        f64 sum_of_squares_next = sml_get_sum_of_squares(input, &pars_next);
 
-            f64 time_sample = row->time_sample;
-            f64 time_infection = row->time_infection;
-            f64 time_peak = time_infection + pars_cur.time_to_peak;
-            f64 time_wane = time_peak + pars_cur.time_to_wane;
+        f64 sum_of_squares_ratio = sum_of_squares_cur / sum_of_squares_next;
 
-            f64 predicted_titre;
-            if (time_sample < time_infection) {
-                predicted_titre = 2.321928;
-            } else if (time_sample < time_peak) {
-                predicted_titre = 2.321928 +
-                    (pars_cur.long_term_boost + pars_cur.short_term_boost) * (time_sample - time_infection) / pars_cur.time_to_peak;
-            } else if (time_sample < time_wane) {
-                predicted_titre = 2.321928 + pars_cur.long_term_boost +
-                    pars_cur.short_term_boost * (1 - (time_sample - time_peak) / pars_cur.time_to_wane);
-            } else {
-                predicted_titre = 2.321928 + pars_cur.long_term_boost;
-            }
-
-            f64 deviation = predicted_titre - row->logtitre;
-            sum_of_squares += deviation * deviation;
-        } // NOTE(sen) for (individual)
+        if (sum_of_squares_ratio > 1 || sml_rbern(sum_of_squares_ratio)) {
+            pars_cur = pars_next;
+        }
 
         output->out[iteration] = pars_cur;
-
     } // NOTE(sen) for (iteration)
 }
