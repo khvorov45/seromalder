@@ -7,11 +7,15 @@ typedef double f64;
 
 typedef void* SmlAllocator(u64 size);
 
+typedef struct SmlInputRow {
+    f64 logtitre;
+    f64 time_sample;
+    f64 time_infection;
+} SmlInputRow;
+
 typedef struct SmlInput {
     u64 n_individuals;
-    f64* logtitres;
-    f64* times_sample;
-    f64* times_infection;
+    SmlInputRow* data;
 } SmlInput;
 
 typedef struct SmlParameters {
@@ -28,27 +32,15 @@ typedef struct SmlOutput {
 
 u64
 sml_required_input_bytes(u64 n_individuals) {
-    u64 input_arrays_per_individual = (sizeof(SmlInput) - sizeof(u64)) / sizeof(void*);
-    u64 result = n_individuals * input_arrays_per_individual * sizeof(f64);
+    u64 result = n_individuals * sizeof(SmlInputRow);
     return result;
-}
-
-SmlInput
-sml_new_input(u64 n_individuals, void* memory) {
-    u64 one_array_bytes = n_individuals * sizeof(f64);
-    SmlInput input;
-    input.n_individuals = n_individuals;
-    input.logtitres = memory;
-    input.times_sample = input.logtitres + one_array_bytes;
-    input.times_infection = input.times_sample + one_array_bytes;
-    return input;
 }
 
 SmlInput
 sml_new_input_alloc(u64 n_individuals, SmlAllocator* allocator) {
     u64 input_bytes = sml_required_input_bytes(n_individuals);
     void* input_memory = allocator(input_bytes);
-    SmlInput input = sml_new_input(n_individuals, input_memory);
+    SmlInput input = { .n_individuals = n_individuals, .data = input_memory };
     return input;
 }
 
@@ -59,18 +51,10 @@ sml_required_output_bytes(u64 n_iterations) {
 }
 
 SmlOutput
-sml_new_output(u64 n_iterations, void* memory) {
-    SmlOutput output;
-    output.n_iterations = n_iterations;
-    output.out = memory;
-    return output;
-}
-
-SmlOutput
 sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
     u64 output_bytes = sml_required_output_bytes(n_iterations);
     void* output_memory = allocator(output_bytes);
-    SmlOutput output = sml_new_output(n_iterations, output_memory);
+    SmlOutput output = { .n_iterations = n_iterations, .out = output_memory };
     return output;
 }
 
@@ -85,8 +69,10 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
             individual_index < input->n_individuals;
             individual_index++) {
 
-            f64 time_sample = input->times_sample[individual_index];
-            f64 time_infection = input->times_infection[individual_index];
+            SmlInputRow* row = input->data + individual_index;
+
+            f64 time_sample = row->time_sample;
+            f64 time_infection = row->time_infection;
             f64 time_peak = time_infection + pars_cur.time_to_peak;
             f64 time_wane = time_peak + pars_cur.time_to_wane;
 
@@ -103,7 +89,7 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
                 predicted_titre = 2.321928 + pars_cur.long_term_boost;
             }
 
-            f64 deviation = predicted_titre - input->logtitres[individual_index];
+            f64 deviation = predicted_titre - row->logtitre;
             sum_of_squares += deviation * deviation;
         }
 

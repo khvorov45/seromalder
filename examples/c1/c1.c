@@ -6,9 +6,9 @@ int
 main() {
     u64 n_individuals = 1;
     SmlInput input = sml_new_input_alloc(n_individuals, malloc);
-    input.logtitres[0] = 2.321928;
-    input.times_sample[0] = 20;
-    input.times_infection[0] = 30;
+    input.data[0].logtitre = 2.321928;
+    input.data[0].time_sample = 20;
+    input.data[0].time_infection = 30;
     SmlParameters pars_init = {
         .long_term_boost = 0,
         .short_term_boost = 0,
