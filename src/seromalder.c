@@ -1,13 +1,36 @@
 #include <stdint.h>
 
 typedef int32_t i32;
+typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
+typedef struct SmlInput {
+    u64 n_individuals;
+    f64* logtitres;
+    f64* times_sample;
+    f64* times_infection;
+} SmlInput;
+
+u64 sml_required_input_bytes(u64 n_individuals) {
+    u64 input_arrays_per_individual = (sizeof(SmlInput) - sizeof(u64)) / sizeof(void*);
+    u64 result = n_individuals * input_arrays_per_individual * sizeof(f64);
+    return result;
+}
+
+SmlInput sml_new_input(u64 n_individuals, void* memory) {
+    u64 one_array_bytes = n_individuals * sizeof(f64);
+    SmlInput input;
+    input.n_individuals = n_individuals;
+    input.logtitres = memory;
+    input.times_sample = input.logtitres + one_array_bytes;
+    input.times_infection = input.times_sample + one_array_bytes;
+    return input;
+}
+
 void
 sml_mcmc(
-    i32 n_individuals,
-    f64* logtitres, f64* times_sample, f64* times_infection,
+    SmlInput input,
     f64 start_long_term_boost, f64 start_short_term_boost,
     f64 start_time_to_peak, f64 start_time_to_wane,
     i32 iterations,
@@ -23,11 +46,11 @@ sml_mcmc(
 
         f64 sum_of_squares = 0;
         for (i32 individual_index = 0;
-            individual_index < n_individuals;
+            individual_index < input.n_individuals;
             individual_index++) {
 
-            f64 time_sample = times_sample[individual_index];
-            f64 time_infection = times_infection[individual_index];
+            f64 time_sample = input.times_sample[individual_index];
+            f64 time_infection = input.times_infection[individual_index];
             f64 time_peak = time_infection + cur_time_to_peak;
             f64 time_wane = time_peak + cur_time_to_wane;
 
@@ -44,7 +67,7 @@ sml_mcmc(
                 predicted_titre = 2.321928 + cur_long_term_boost;
             }
 
-            f64 deviation = predicted_titre - logtitres[individual_index];
+            f64 deviation = predicted_titre - input.logtitres[individual_index];
             sum_of_squares += deviation * deviation;
         }
 
@@ -53,25 +76,4 @@ sml_mcmc(
         out_start_time_to_peak[iteration] = iteration;
         out_time_to_wane[iteration] = iteration;
     }
-}
-
-void
-sml_r_mcmc(
-    i32* n_individuals,
-    f64* logtitres, f64* times_sample, f64* times_infection,
-    f64* start_long_term_boost, f64* start_short_term_boost,
-    f64* start_time_to_peak, f64* start_time_to_wane,
-    i32* iterations,
-    f64* out_long_term_boost, f64* out_short_term_boost,
-    f64* out_start_time_to_peak, f64* out_time_to_wane
-) {
-    sml_mcmc(
-        *n_individuals,
-        logtitres, times_sample, times_infection,
-        *start_long_term_boost, *start_short_term_boost,
-        *start_time_to_peak, *start_time_to_wane,
-        *iterations,
-        out_long_term_boost, out_short_term_boost,
-        out_start_time_to_peak, out_time_to_wane
-    );
 }
