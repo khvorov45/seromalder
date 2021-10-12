@@ -9,7 +9,7 @@ typedef i32 b32;
 typedef void* SmlAllocator(u64 size);
 
 typedef struct SmlInputRow {
-    f64 logtitre;
+    f64 log2titre;
     f64 time_sample;
     f64 time_infection;
 } SmlInputRow;
@@ -22,7 +22,6 @@ typedef struct SmlInput {
 typedef struct SmlParameters {
     f64 long_term_boost;
     f64 short_term_boost;
-    f64 time_to_peak;
     f64 time_to_wane;
 } SmlParameters;
 
@@ -30,6 +29,20 @@ typedef struct SmlOutput {
     u64 n_iterations;
     SmlParameters* out;
 } SmlOutput;
+
+typedef struct SmlConstants {
+    f64 time_to_peak;
+    f64 lowest_log2titre;
+} SmlConstants;
+
+SmlConstants
+sml_default_constants() {
+    SmlConstants result = {
+        .time_to_peak = 14, // NOTE(sen) Days
+        .lowest_log2titre = 2.321928, // NOTE(sen) Log2(5)
+    };
+    return result;
+}
 
 u64
 sml_required_input_bytes(u64 n_individuals) {
@@ -60,7 +73,7 @@ sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
 }
 
 f64
-sml_get_sum_of_squares(SmlInput* input, SmlParameters* pars) {
+sml_get_sum_of_squares(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 
     f64 result = 0;
 
@@ -72,53 +85,54 @@ sml_get_sum_of_squares(SmlInput* input, SmlParameters* pars) {
 
         f64 time_sample = row->time_sample;
         f64 time_infection = row->time_infection;
-        f64 time_peak = time_infection + pars->time_to_peak;
+        f64 time_peak = time_infection + consts->time_to_peak;
         f64 time_wane = time_peak + pars->time_to_wane;
 
         f64 predicted_titre;
         if (time_sample < time_infection) {
-            predicted_titre = 2.321928;
+            predicted_titre = consts->lowest_log2titre;
         } else if (time_sample < time_peak) {
-            predicted_titre = 2.321928 +
+            predicted_titre = consts->lowest_log2titre +
                 (pars->long_term_boost + pars->short_term_boost) *
-                (time_sample - time_infection) / pars->time_to_peak;
+                (time_sample - time_infection) / consts->time_to_peak;
         } else if (time_sample < time_wane) {
-            predicted_titre = 2.321928 + pars->long_term_boost +
+            predicted_titre = consts->lowest_log2titre + pars->long_term_boost +
                 pars->short_term_boost * (1 - (time_sample - time_peak) / pars->time_to_wane);
         } else {
-            predicted_titre = 2.321928 + pars->long_term_boost;
+            predicted_titre = consts->lowest_log2titre + pars->long_term_boost;
         }
 
-        f64 deviation = predicted_titre - row->logtitre;
+        f64 deviation = predicted_titre - row->log2titre;
         result += deviation * deviation;
     } // NOTE(sen) for (individual)
 
     return result;
 }
 
-f64 sml_rnorm(f64 mean, f64 sd) {
+f64
+sml_rnorm(f64 mean, f64 sd) {
     return mean;
 }
 
-b32 sml_rbern(f64 prop) {
+b32
+sml_rbern(f64 prop) {
     return 0;
 }
 
 void
-sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
+sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConstants* consts) {
 
     SmlParameters pars_cur = *pars_init;
-    f64 sum_of_squares_cur = sml_get_sum_of_squares(input, &pars_cur);
+    f64 sum_of_squares_cur = sml_get_sum_of_squares(input, &pars_cur, consts);
 
     for (i32 iteration = 0; iteration < output->n_iterations; iteration++) {
 
         SmlParameters pars_next;
         pars_next.long_term_boost = sml_rnorm(pars_cur.long_term_boost, 1);
         pars_next.short_term_boost = sml_rnorm(pars_cur.short_term_boost, 1);
-        pars_next.time_to_peak = sml_rnorm(pars_cur.time_to_peak, 1);
         pars_next.time_to_wane = sml_rnorm(pars_cur.time_to_wane, 1);
 
-        f64 sum_of_squares_next = sml_get_sum_of_squares(input, &pars_next);
+        f64 sum_of_squares_next = sml_get_sum_of_squares(input, &pars_next, consts);
 
         f64 sum_of_squares_ratio = sum_of_squares_cur / sum_of_squares_next;
 
