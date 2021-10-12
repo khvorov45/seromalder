@@ -18,5 +18,5 @@ main() {
     i32 n_iterations = 1;
     SmlOutput out = sml_new_output_alloc(n_iterations, malloc);
 
-    sml_mcmc(input, pars_init, out);
+    sml_mcmc(&input, &pars_init, &out);
 }

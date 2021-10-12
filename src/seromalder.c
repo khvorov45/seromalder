@@ -75,22 +75,18 @@ sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
 }
 
 void
-sml_mcmc(
-    SmlInput input,
-    SmlParameters pars_init,
-    SmlOutput output
-) {
-    SmlParameters pars_cur = pars_init;
+sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output) {
+    SmlParameters pars_cur = *pars_init;
 
-    for (i32 iteration = 0; iteration < output.n_iterations; iteration++) {
+    for (i32 iteration = 0; iteration < output->n_iterations; iteration++) {
 
         f64 sum_of_squares = 0;
         for (i32 individual_index = 0;
-            individual_index < input.n_individuals;
+            individual_index < input->n_individuals;
             individual_index++) {
 
-            f64 time_sample = input.times_sample[individual_index];
-            f64 time_infection = input.times_infection[individual_index];
+            f64 time_sample = input->times_sample[individual_index];
+            f64 time_infection = input->times_infection[individual_index];
             f64 time_peak = time_infection + pars_cur.time_to_peak;
             f64 time_wane = time_peak + pars_cur.time_to_wane;
 
@@ -107,10 +103,10 @@ sml_mcmc(
                 predicted_titre = 2.321928 + pars_cur.long_term_boost;
             }
 
-            f64 deviation = predicted_titre - input.logtitres[individual_index];
+            f64 deviation = predicted_titre - input->logtitres[individual_index];
             sum_of_squares += deviation * deviation;
         }
 
-        output.out[iteration] = pars_cur;
+        output->out[iteration] = pars_cur;
     }
 }
