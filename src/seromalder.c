@@ -77,7 +77,7 @@ sml_get_sum_of_squares(SmlInput* input, SmlParameters* pars, SmlConstants* const
 
     f64 result = 0;
 
-    for (i32 individual_index = 0;
+    for (u64 individual_index = 0;
         individual_index < input->n_individuals;
         individual_index++) {
 
@@ -125,7 +125,7 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConsta
     SmlParameters pars_cur = *pars_init;
     f64 sum_of_squares_cur = sml_get_sum_of_squares(input, &pars_cur, consts);
 
-    for (i32 iteration = 0; iteration < output->n_iterations; iteration++) {
+    for (u64 iteration = 0; iteration < output->n_iterations; iteration++) {
 
         SmlParameters pars_next;
         pars_next.long_term_boost = sml_rnorm(pars_cur.long_term_boost, 1);
