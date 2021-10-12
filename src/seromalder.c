@@ -5,6 +5,8 @@ typedef uint64_t u64;
 typedef float f32;
 typedef double f64;
 
+typedef void* SmlAllocator(u64 size);
+
 typedef struct SmlInput {
     u64 n_individuals;
     f64* logtitres;
@@ -12,19 +14,29 @@ typedef struct SmlInput {
     f64* times_infection;
 } SmlInput;
 
-u64 sml_required_input_bytes(u64 n_individuals) {
+u64
+sml_required_input_bytes(u64 n_individuals) {
     u64 input_arrays_per_individual = (sizeof(SmlInput) - sizeof(u64)) / sizeof(void*);
     u64 result = n_individuals * input_arrays_per_individual * sizeof(f64);
     return result;
 }
 
-SmlInput sml_new_input(u64 n_individuals, void* memory) {
+SmlInput
+sml_new_input(u64 n_individuals, void* memory) {
     u64 one_array_bytes = n_individuals * sizeof(f64);
     SmlInput input;
     input.n_individuals = n_individuals;
     input.logtitres = memory;
     input.times_sample = input.logtitres + one_array_bytes;
     input.times_infection = input.times_sample + one_array_bytes;
+    return input;
+}
+
+SmlInput
+sml_new_input_alloc(u64 n_individuals, SmlAllocator* allocator) {
+    u64 input_bytes = sml_required_input_bytes(n_individuals);
+    void* input_memory = allocator(input_bytes);
+    SmlInput input = sml_new_input(n_individuals, input_memory);
     return input;
 }
 

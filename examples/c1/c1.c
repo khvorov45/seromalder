@@ -1,12 +1,11 @@
-#include "stdlib.h"
 #include "../../src/seromalder.c"
+
+#include "stdlib.h"
 
 int
 main() {
     u64 n_individuals = 1;
-    u64 input_bytes = sml_required_input_bytes(n_individuals);
-    void* input_memory = malloc(input_bytes);
-    SmlInput input = sml_new_input(n_individuals, input_memory);
+    SmlInput input = sml_new_input_alloc(n_individuals, malloc);
     input.logtitres[0] = 2.321928;
     input.times_sample[0] = 20;
     input.times_infection[0] = 30;
