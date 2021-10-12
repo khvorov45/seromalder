@@ -21,6 +21,11 @@ typedef struct SmlParameters {
     f64 time_to_wane;
 } SmlParameters;
 
+typedef struct SmlOutput {
+    u64 n_iterations;
+    SmlParameters* out;
+} SmlOutput;
+
 u64
 sml_required_input_bytes(u64 n_individuals) {
     u64 input_arrays_per_individual = (sizeof(SmlInput) - sizeof(u64)) / sizeof(void*);
@@ -47,17 +52,37 @@ sml_new_input_alloc(u64 n_individuals, SmlAllocator* allocator) {
     return input;
 }
 
+u64
+sml_required_output_bytes(u64 n_iterations) {
+    u64 result = sizeof(SmlParameters) * n_iterations;
+    return result;
+}
+
+SmlOutput
+sml_new_output(u64 n_iterations, void* memory) {
+    SmlOutput output;
+    output.n_iterations = n_iterations;
+    output.out = memory;
+    return output;
+}
+
+SmlOutput
+sml_new_output_alloc(u64 n_iterations, SmlAllocator* allocator) {
+    u64 output_bytes = sml_required_output_bytes(n_iterations);
+    void* output_memory = allocator(output_bytes);
+    SmlOutput output = sml_new_output(n_iterations, output_memory);
+    return output;
+}
+
 void
 sml_mcmc(
     SmlInput input,
     SmlParameters pars_init,
-    i32 iterations,
-    f64* out_long_term_boost, f64* out_short_term_boost,
-    f64* out_start_time_to_peak, f64* out_time_to_wane
+    SmlOutput output
 ) {
     SmlParameters pars_cur = pars_init;
 
-    for (i32 iteration = 0; iteration < iterations; iteration++) {
+    for (i32 iteration = 0; iteration < output.n_iterations; iteration++) {
 
         f64 sum_of_squares = 0;
         for (i32 individual_index = 0;
@@ -86,9 +111,6 @@ sml_mcmc(
             sum_of_squares += deviation * deviation;
         }
 
-        out_long_term_boost[iteration] = sum_of_squares;
-        out_short_term_boost[iteration] = iteration;
-        out_start_time_to_peak[iteration] = iteration;
-        out_time_to_wane[iteration] = iteration;
+        output.out[iteration] = pars_cur;
     }
 }

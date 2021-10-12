@@ -15,19 +15,8 @@ main() {
         .time_to_peak = 14,
         .time_to_wane = 50
     };
-    i32 iterations = 1;
-    f64 out_long_term_boost;
-    f64 out_short_term_boost;
-    f64 out_start_time_to_peak;
-    f64 out_time_to_wane;
+    i32 n_iterations = 1;
+    SmlOutput out = sml_new_output_alloc(n_iterations, malloc);
 
-    sml_mcmc(
-        input,
-        pars_init,
-        iterations,
-        &out_long_term_boost,
-        &out_short_term_boost,
-        &out_start_time_to_peak,
-        &out_time_to_wane
-    );
+    sml_mcmc(input, pars_init, out);
 }
