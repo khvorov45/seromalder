@@ -19,12 +19,7 @@ sml_mcmc(
     f64 cur_time_to_peak = start_time_to_peak;
     f64 cur_time_to_wane = start_time_to_wane;
 
-    out_long_term_boost[0] = start_long_term_boost;
-    out_short_term_boost[0] = start_short_term_boost;
-    out_start_time_to_peak[0] = start_time_to_peak;
-    out_time_to_wane[0] = start_time_to_wane;
-
-    for (i32 iteration = 1; iteration < iterations; iteration++) {
+    for (i32 iteration = 0; iteration < iterations; iteration++) {
 
         f64 sum_of_squares = 0;
         for (i32 individual_index = 0;
