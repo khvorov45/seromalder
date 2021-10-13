@@ -168,7 +168,7 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConsta
 
         double log_prior_prob_next = sml_log_prior_prob(&pars_next);
         double log_likelihood_next = sml_log_likelihood(input, &pars_next, consts);
-        double log_posterior_next = log_prior_prob_next * log_likelihood_next;
+        double log_posterior_next = log_prior_prob_next + log_likelihood_next;
 
         double log_posterior_diff = log_posterior_next - log_posterior_cur;
 
