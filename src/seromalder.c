@@ -1,3 +1,4 @@
+#include "math.h"
 #include <stdint.h>
 
 typedef void* SmlAllocator(uint64_t size);
@@ -69,12 +70,6 @@ sml_default_settings() {
     result.proposal_sds.wane_rate = 1;
     result.proposal_sds.residual_sd = 1;
     return result;
-}
-
-double
-sml_exp(double value) {
-    // TODO(sen) Implement
-    return value;
 }
 
 double
@@ -180,7 +175,7 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConsta
         if (log_posterior_diff >= 0) {
             pars_cur = pars_next;
         } else {
-            double posterior_ratio = sml_exp(log_posterior_diff);
+            double posterior_ratio = exp(log_posterior_diff);
             if (sml_rbern(posterior_ratio)) {
                 pars_cur = pars_next;
             }
