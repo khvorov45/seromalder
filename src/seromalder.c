@@ -1,4 +1,3 @@
-#include "math.h"
 #include <stdint.h>
 
 typedef void* SmlAllocator(uint64_t size);
@@ -69,6 +68,30 @@ sml_default_settings() {
     result.proposal_sds.baseline_sd = 1;
     result.proposal_sds.wane_rate = 1;
     result.proposal_sds.residual_sd = 1;
+    return result;
+}
+
+double
+sml_exp(double value) {
+    // NOTE(sen) Adapted from
+    // https://github.com/pmttavara/pt_math
+
+    double log2e = 1.44269504088896341;
+    double exponent = value * log2e;
+    double exponent_biased = exponent + 1023;
+
+    int64_t exponent_biased_floored = (int64_t)(exponent_biased);
+    double exponent_biased_frac = exponent_biased - exponent_biased_floored;
+
+    int64_t bits_in_mantissa = 52;
+    int64_t closest_pow2_bits = exponent_biased_floored << bits_in_mantissa;
+    double closest_pow2 = *(double*)&closest_pow2_bits;
+
+    double two_to_frac = 1 + exponent_biased_frac *
+        (0.6931471805599452862268 +
+            0.2402265069591006940719 * exponent_biased_frac +
+            0.05550410866482157618007 * exponent_biased_frac * exponent_biased_frac);
+    double result = two_to_frac * closest_pow2;
     return result;
 }
 
@@ -179,8 +202,8 @@ sml_mcmc(
 
         if (log_posterior_diff >= 0) {
             pars_cur = pars_next;
-        } else {
-            double posterior_ratio = exp(log_posterior_diff);
+        } else if (log_posterior_diff > -15) {
+            double posterior_ratio = sml_exp(log_posterior_diff);
             if (sml_rbern(posterior_ratio)) {
                 pars_cur = pars_next;
             }
