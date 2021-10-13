@@ -60,7 +60,7 @@ sml_rnorm(double mean, double sd) {
     return mean;
 }
 
-int
+int32_t
 sml_rbern(double prop) {
     return 0;
 }
