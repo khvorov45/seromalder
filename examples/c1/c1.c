@@ -20,9 +20,13 @@ main() {
         }
         individual->titre_count = 3;
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
-        for (uint64_t titre_index = 0; titre_index < individual->titre_count; titre_index++) {
+        double titre_times[3] = { 0, 14, 200 };
+        for (uint64_t titre_index = 0;
+            titre_index < individual->titre_count;
+            titre_index++) {
             SmlInputTitre* titre = individual->titres + titre_index;
             titre->log2titre = constants.lowest_log2titre;
+            titre->time = titre_times[titre_index];
         }
     }
 
@@ -35,7 +39,7 @@ main() {
     };
 
     SmlOutput output;
-    output.n_iterations = 1;
+    output.n_iterations = 10;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlMcmcSettings settings = sml_default_settings();
