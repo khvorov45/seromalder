@@ -5,18 +5,37 @@
 int
 main() {
     SmlConstants constants = sml_default_constants();
-    u64 n_individuals = 1;
-    SmlInput input = sml_new_input_alloc(n_individuals, malloc);
-    input.data[0].log2titre = constants.lowest_log2titre;
-    input.data[0].time_sample = 20;
-    input.data[0].time_infection = 30;
-    SmlParameters pars_init = {
-        .long_term_boost = 0,
-        .short_term_boost = 0,
-        .time_to_wane = 50
-    };
-    i32 n_iterations = 1;
-    SmlOutput out = sml_new_output_alloc(n_iterations, malloc);
 
-    sml_mcmc(&input, &pars_init, &out, &constants);
+    SmlInput input;
+    input.n_individuals = 1;
+    input.data = malloc(input.n_individuals * sizeof(SmlInputIndividual));
+    for (u64 individual_index = 0; individual_index < input.n_individuals; individual_index++) {
+        SmlInputIndividual* individual = input.data + individual_index;
+        individual->event_count = 1;
+        individual->events = malloc(individual->event_count * sizeof(SmlInputEvent));
+        for (u64 event_index = 0; event_index < individual->event_count; event_index++) {
+            SmlInputEvent* event = individual->events + event_index;
+            event->type = SmlEvent_Vaccination;
+            event->time = 0;
+        }
+        individual->titre_count = 3;
+        individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
+        for (u64 titre_index = 0; titre_index < individual->titre_count; titre_index++) {
+            SmlInputTitre* titre = individual->titres + titre_index;
+            titre->log2titre = constants.lowest_log2titre;
+        }
+    }
+
+    SmlParameters pars_init = {
+        .vaccination_log2diff = 2,
+        .baseline = constants.lowest_log2titre,
+        .baseline_sd = 1,
+        .wane_rate = 0,
+    };
+
+    SmlOutput output;
+    output.n_iterations = 1;
+    output.out = malloc(output.n_iterations * sizeof(SmlParameters));
+
+    sml_mcmc(&input, &pars_init, &output, &constants);
 }
