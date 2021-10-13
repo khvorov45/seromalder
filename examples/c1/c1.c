@@ -9,18 +9,18 @@ main() {
     SmlInput input;
     input.n_individuals = 1;
     input.data = malloc(input.n_individuals * sizeof(SmlInputIndividual));
-    for (u64 individual_index = 0; individual_index < input.n_individuals; individual_index++) {
+    for (uint64_t individual_index = 0; individual_index < input.n_individuals; individual_index++) {
         SmlInputIndividual* individual = input.data + individual_index;
         individual->event_count = 1;
         individual->events = malloc(individual->event_count * sizeof(SmlInputEvent));
-        for (u64 event_index = 0; event_index < individual->event_count; event_index++) {
+        for (uint64_t event_index = 0; event_index < individual->event_count; event_index++) {
             SmlInputEvent* event = individual->events + event_index;
             event->type = SmlEvent_Vaccination;
             event->time = 0;
         }
         individual->titre_count = 3;
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
-        for (u64 titre_index = 0; titre_index < individual->titre_count; titre_index++) {
+        for (uint64_t titre_index = 0; titre_index < individual->titre_count; titre_index++) {
             SmlInputTitre* titre = individual->titres + titre_index;
             titre->log2titre = constants.lowest_log2titre;
         }
