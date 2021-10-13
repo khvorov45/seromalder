@@ -148,8 +148,13 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 }
 
 void
-sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConstants* consts, SmlMcmcSettings* settings) {
-
+sml_mcmc(
+    SmlInput* input,
+    SmlParameters* pars_init,
+    SmlOutput* output,
+    SmlConstants* consts,
+    SmlMcmcSettings* settings
+) {
     SmlParameters pars_cur = *pars_init;
     double log_prior_prob_cur = sml_log_prior_prob(&pars_cur);
     double log_likelihood_cur = sml_log_likelihood(input, &pars_cur, consts);
