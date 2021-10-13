@@ -98,7 +98,7 @@ sml_rbern(double prop) {
 double
 sml_log_prior_prob(SmlParameters* pars) {
     // TODO(sen) Implement
-    return 1;
+    return 0;
 }
 
 double
@@ -126,9 +126,9 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 
                 SmlInputEvent* event = individual->events + event_index;
 
-                if (event->time > titre->time) {
+                if (titre->time > event->time) {
                     if (event->type == SmlEvent_Vaccination) {
-                        double time_since = event->time - titre->time;
+                        double time_since = titre->time - event->time;
                         double up_slope = pars->vaccination_log2diff / consts->time_to_peak;
                         double past_peak = (double)(time_since > consts->time_to_peak);
                         double titre_contribution = up_slope * time_since -
@@ -177,7 +177,7 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConsta
 
         double log_posterior_diff = log_posterior_next - log_posterior_cur;
 
-        if (log_posterior_diff > 0) {
+        if (log_posterior_diff >= 0) {
             pars_cur = pars_next;
         } else {
             double posterior_ratio = sml_exp(log_posterior_diff);
