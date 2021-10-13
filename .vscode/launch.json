@@ -11,6 +11,14 @@
       "target": "./examples/c1/c1",
       "cwd": "${workspaceRoot}",
       "valuesFormatting": "prettyPrinters"
+    },
+    {
+      "name": "Tests",
+      "type": "gdb",
+      "request": "launch",
+      "target": "./tests/tests",
+      "cwd": "${workspaceRoot}",
+      "valuesFormatting": "prettyPrinters"
     }
   ]
 }

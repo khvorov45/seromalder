@@ -6,4 +6,8 @@ gcc -shared \
 
 gcc -g examples/c1/c1.c -o examples/c1/c1
 
+gcc -g tests/tests.c -o tests/tests -lm
+
+./tests/tests
+
 echo done
