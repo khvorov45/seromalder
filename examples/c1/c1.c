@@ -31,6 +31,7 @@ main() {
         .baseline = constants.lowest_log2titre,
         .baseline_sd = 1,
         .wane_rate = 0,
+        .residual_sd = 1,
     };
 
     SmlOutput output;

@@ -34,6 +34,7 @@ typedef struct SmlParameters {
     double baseline;
     double baseline_sd;
     double wane_rate;
+    double residual_sd;
 } SmlParameters;
 
 typedef struct SmlOutput {
@@ -66,22 +67,38 @@ sml_default_settings() {
     result.proposal_sds.baseline = 1;
     result.proposal_sds.baseline_sd = 1;
     result.proposal_sds.wane_rate = 1;
+    result.proposal_sds.residual_sd = 1;
     return result;
 }
 
 double
+sml_exp(double value) {
+    // TODO(sen) Implement
+    return value;
+}
+
+double
+sml_log_normal_pdf(double value, double mean, double sd) {
+    // TODO(sen) Implement
+    return 0;
+}
+
+double
 sml_rnorm(double mean, double sd) {
+    // TODO(sen) Implement
     return mean;
 }
 
 int32_t
 sml_rbern(double prop) {
+    // TODO(sen) Implement
     return 0;
 }
 
 double
-sml_prior_prob(SmlParameters* pars) {
-    return 0;
+sml_log_prior_prob(SmlParameters* pars) {
+    // TODO(sen) Implement
+    return 1;
 }
 
 double
@@ -93,7 +110,41 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
         individual_index < input->n_individuals;
         individual_index++) {
 
-        // SmlInputIndividual* individual = input->data + individual_index;
+        SmlInputIndividual* individual = input->data + individual_index;
+
+        for (uint64_t titre_index = 0;
+            titre_index < individual->titre_count;
+            titre_index++) {
+
+            SmlInputTitre* titre = individual->titres + titre_index;
+
+            double predicted_titre = consts->lowest_log2titre;
+
+            for (uint64_t event_index = 0;
+                event_index < individual->event_count;
+                event_index++) {
+
+                SmlInputEvent* event = individual->events + event_index;
+
+                if (event->time > titre->time) {
+                    if (event->type == SmlEvent_Vaccination) {
+                        double time_since = event->time - titre->time;
+                        double up_slope = pars->vaccination_log2diff / consts->time_to_peak;
+                        double past_peak = (double)(time_since > consts->time_to_peak);
+                        double titre_contribution = up_slope * time_since -
+                            past_peak * (up_slope + pars->wane_rate) * (time_since - consts->time_to_peak);
+                        predicted_titre += titre_contribution;
+                    } else {
+                        // TODO(sen) Handle infection
+                    }
+                }
+            } // NOTE(sen) for (event)
+
+            double deviation = titre->log2titre - predicted_titre;
+            double titre_prob = sml_log_normal_pdf(deviation, predicted_titre, pars->residual_sd);
+            log_likelihood += titre_prob;
+
+        } // NOTE(sen) for (titre)
 
         log_likelihood += 0;
     } // NOTE(sen) for (individual)
@@ -105,9 +156,9 @@ void
 sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConstants* consts, SmlMcmcSettings* settings) {
 
     SmlParameters pars_cur = *pars_init;
-    double prior_prob_cur = sml_prior_prob(&pars_cur);
+    double log_prior_prob_cur = sml_log_prior_prob(&pars_cur);
     double log_likelihood_cur = sml_log_likelihood(input, &pars_cur, consts);
-    double posterior_cur = prior_prob_cur * log_likelihood_cur;
+    double log_posterior_cur = log_prior_prob_cur + log_likelihood_cur;
 
     SmlParameters* steps = &settings->proposal_sds;
 
@@ -120,14 +171,19 @@ sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConsta
         pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, steps->baseline_sd);
         pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
 
-        double prior_prob_next = sml_prior_prob(&pars_next);
+        double log_prior_prob_next = sml_log_prior_prob(&pars_next);
         double log_likelihood_next = sml_log_likelihood(input, &pars_next, consts);
-        double posterior_next = prior_prob_next * log_likelihood_next;
+        double log_posterior_next = log_prior_prob_next * log_likelihood_next;
 
-        double posterior_ratio = posterior_next / posterior_cur;
+        double log_posterior_diff = log_posterior_next - log_posterior_cur;
 
-        if (posterior_ratio > 1 || sml_rbern(posterior_ratio)) {
+        if (log_posterior_diff > 0) {
             pars_cur = pars_next;
+        } else {
+            double posterior_ratio = sml_exp(log_posterior_diff);
+            if (sml_rbern(posterior_ratio)) {
+                pars_cur = pars_next;
+            }
         }
 
         output->out[iteration] = pars_cur;
