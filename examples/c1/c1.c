@@ -37,5 +37,7 @@ main() {
     output.n_iterations = 1;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
-    sml_mcmc(&input, &pars_init, &output, &constants);
+    SmlMcmcSettings settings = sml_default_settings();
+
+    sml_mcmc(&input, &pars_init, &output, &constants, &settings);
 }

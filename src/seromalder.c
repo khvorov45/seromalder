@@ -46,12 +46,26 @@ typedef struct SmlConstants {
     double lowest_log2titre;
 } SmlConstants;
 
+typedef struct SmlMcmcSettings {
+    SmlParameters proposal_sds;
+} SmlMcmcSettings;
+
 SmlConstants
 sml_default_constants() {
     SmlConstants result = {
         .time_to_peak = 14, // NOTE(sen) Days
         .lowest_log2titre = 2.321928, // NOTE(sen) Log2(5)
     };
+    return result;
+}
+
+SmlMcmcSettings
+sml_default_settings() {
+    SmlMcmcSettings result;
+    result.proposal_sds.vaccination_log2diff = 1;
+    result.proposal_sds.baseline = 1;
+    result.proposal_sds.baseline_sd = 1;
+    result.proposal_sds.wane_rate = 1;
     return result;
 }
 
@@ -88,20 +102,23 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 }
 
 void
-sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConstants* consts) {
+sml_mcmc(SmlInput* input, SmlParameters* pars_init, SmlOutput* output, SmlConstants* consts, SmlMcmcSettings* settings) {
 
     SmlParameters pars_cur = *pars_init;
     double prior_prob_cur = sml_prior_prob(&pars_cur);
     double log_likelihood_cur = sml_log_likelihood(input, &pars_cur, consts);
     double posterior_cur = prior_prob_cur * log_likelihood_cur;
 
+    SmlParameters* steps = &settings->proposal_sds;
+
     for (uint64_t iteration = 0; iteration < output->n_iterations; iteration++) {
 
         SmlParameters pars_next;
-        pars_next.vaccination_log2diff = sml_rnorm(pars_cur.vaccination_log2diff, 1);
-        pars_next.baseline = sml_rnorm(pars_cur.baseline, 1);
-        pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, 1);
-        pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, 1);
+        pars_next.vaccination_log2diff =
+            sml_rnorm(pars_cur.vaccination_log2diff, steps->vaccination_log2diff);
+        pars_next.baseline = sml_rnorm(pars_cur.baseline, steps->baseline);
+        pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, steps->baseline_sd);
+        pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
 
         double prior_prob_next = sml_prior_prob(&pars_next);
         double log_likelihood_next = sml_log_likelihood(input, &pars_next, consts);
