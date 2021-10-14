@@ -36,17 +36,15 @@ void log_test() {
 }
 
 void test_log2_normal_pdf() {
-    double mean = 20;
-    double sd = 5;
     double values[] = { -10, -5, -1, 0, 1, 5, 10 };
     double r_results[] = {
-        -29.6161868956249, -21.6813641707356, -16.3722464202642, -15.1892364867352,
-        -14.0639343548418, -10.1398038436239, -6.53306624140145
+        -73.4605001091843, -19.3594360758482, -2.04709558518064, -1.32574806473616,
+        -2.04709558518064, -19.3594360758482, -73.4605001091843
     };
     int32_t count = 7;
     double deviation = 0;
     for (int32_t index = 0; index < count; index++) {
-        double result_sml = sml_log2_normal_pdf(values[index], mean, sd);
+        double result_sml = sml_log2_std_normal_pdf(values[index]);
         double result_r = r_results[index];
         deviation += fabs(result_r - result_sml);
     }
