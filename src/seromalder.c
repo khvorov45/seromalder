@@ -120,9 +120,16 @@ sml_log2(double value) {
 }
 
 double
-sml_log_normal_pdf(double value, double mean, double sd) {
-    // TODO(sen) Implement
-    return 0;
+sml_log2_normal_pdf(double value, double mean, double sd) {
+    double log2_one_over_sqrt_2pi = -1.325748064736159248511;
+    double log2_one_over_sd = -sml_log2(sd);
+
+    double half_log2e = 0.7213475204444816935023;
+    double value_standardized = (value - mean) / sd;
+
+    double result = log2_one_over_sqrt_2pi + log2_one_over_sd - half_log2e * value_standardized * value_standardized;
+
+    return result;
 }
 
 double
@@ -183,7 +190,7 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
             } // NOTE(sen) for (event)
 
             double deviation = titre->log2titre - predicted_titre;
-            double titre_prob = sml_log_normal_pdf(deviation, predicted_titre, pars->residual_sd);
+            double titre_prob = sml_log2_normal_pdf(deviation, predicted_titre, pars->residual_sd);
             log_likelihood += titre_prob;
 
         } // NOTE(sen) for (titre)
