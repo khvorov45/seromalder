@@ -5,19 +5,19 @@
 
 void exp_test() {
     int32_t count = 100;
-    double min = -15;
+    double min = -20;
     double max = 0;
     double step = (max - min) / (double)count;
     double deviation = 0;
     double value = min;
     for (int32_t index = 0; index < count; index++) {
         value += step;
-        double result_sml = sml_exp(value);
-        double result_crt = exp(value);
+        double result_sml = sml_pow2(value);
+        double result_crt = pow(2.0, value);
         deviation += fabs(result_crt - result_sml);
     }
     double average_deviation = deviation / (double)count;
-    printf("sml_exp average deviation from math.h exp (range %f - %f): %f\n", min, max, average_deviation);
+    printf("sml_pow2 average deviation from math.h pow (range %f - %f): %f\n", min, max, average_deviation);
 }
 
 int

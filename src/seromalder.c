@@ -72,13 +72,11 @@ sml_default_settings() {
 }
 
 double
-sml_exp(double value) {
+sml_pow2(double value) {
     // NOTE(sen) Adapted from
     // https://github.com/pmttavara/pt_math
 
-    double log2e = 1.44269504088896341;
-    double exponent = value * log2e;
-    double exponent_biased = exponent + 1023;
+    double exponent_biased = value + 1023;
 
     int64_t exponent_biased_floored = (int64_t)(exponent_biased);
     double exponent_biased_frac = exponent_biased - exponent_biased_floored;
@@ -202,8 +200,8 @@ sml_mcmc(
 
         if (log_posterior_diff >= 0) {
             pars_cur = pars_next;
-        } else if (log_posterior_diff > -15) {
-            double posterior_ratio = sml_exp(log_posterior_diff);
+        } else if (log_posterior_diff > -20) {
+            double posterior_ratio = sml_pow2(log_posterior_diff);
             if (sml_rbern(posterior_ratio)) {
                 pars_cur = pars_next;
             }
