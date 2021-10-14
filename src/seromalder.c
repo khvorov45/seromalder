@@ -151,9 +151,9 @@ sml_log_prior_prob(SmlParameters* pars) {
 }
 
 double
-sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
+sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 
-    double log_likelihood = 0;
+    double log2_likelihood = 0;
 
     for (uint64_t individual_index = 0;
         individual_index < input->n_individuals;
@@ -191,14 +191,14 @@ sml_log_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) {
 
             double deviation = titre->log2titre - predicted_titre;
             double titre_prob = sml_log2_normal_pdf(deviation, predicted_titre, pars->residual_sd);
-            log_likelihood += titre_prob;
+            log2_likelihood += titre_prob;
 
         } // NOTE(sen) for (titre)
 
-        log_likelihood += 0;
+        log2_likelihood += 0;
     } // NOTE(sen) for (individual)
 
-    return log_likelihood;
+    return log2_likelihood;
 }
 
 void
@@ -211,7 +211,7 @@ sml_mcmc(
 ) {
     SmlParameters pars_cur = *pars_init;
     double log_prior_prob_cur = sml_log_prior_prob(&pars_cur);
-    double log_likelihood_cur = sml_log_likelihood(input, &pars_cur, consts);
+    double log_likelihood_cur = sml_log2_likelihood(input, &pars_cur, consts);
     double log_posterior_cur = log_prior_prob_cur + log_likelihood_cur;
 
     SmlParameters* steps = &settings->proposal_sds;
@@ -226,7 +226,7 @@ sml_mcmc(
         pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
 
         double log_prior_prob_next = sml_log_prior_prob(&pars_next);
-        double log_likelihood_next = sml_log_likelihood(input, &pars_next, consts);
+        double log_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
         double log_posterior_next = log_prior_prob_next + log_likelihood_next;
 
         double log_posterior_diff = log_posterior_next - log_posterior_cur;
