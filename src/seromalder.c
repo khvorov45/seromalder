@@ -94,6 +94,32 @@ sml_pow2(double value) {
 }
 
 double
+sml_log2(double value) {
+    // NOTE(sen) Adapted from
+    // https://github.com/pmttavara/pt_math
+
+    int64_t value_bits = *(int64_t*)&value;
+
+    int64_t bits_in_mantissa = 52;
+    int64_t value_exponent_biased = value_bits >> bits_in_mantissa;
+    double closest_whole = (double)(value_exponent_biased - 1023);
+
+    int64_t value_remainder_bits = (value_bits & 0x000fffffffffffff) | 0x3ff0000000000000;
+    double value_remainder = *(double*)&value_remainder_bits;
+    double value_remainder_m1 = value_remainder - 1;
+    double frac_e = value_remainder_m1 -
+        (value_remainder_m1) * (value_remainder_m1) * 0.5 +
+        (value_remainder_m1) * (value_remainder_m1) * (value_remainder_m1) * 0.33333333333333333;
+
+    double log2e = 1.442695040888963387005;
+    double frac_2 = frac_e * log2e;
+
+    double result = closest_whole + frac_2;
+
+    return result;
+}
+
+double
 sml_log_normal_pdf(double value, double mean, double sd) {
     // TODO(sen) Implement
     return 0;
