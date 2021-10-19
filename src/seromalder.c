@@ -190,7 +190,6 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
 
         } // NOTE(sen) for (titre)
 
-        log2_likelihood += 0;
     } // NOTE(sen) for (individual)
 
     return log2_likelihood;
