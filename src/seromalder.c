@@ -140,7 +140,7 @@ sml_rbern(double prop) {
 }
 
 double
-sml_log_prior_prob(SmlParameters* pars) {
+sml_log2_prior_prob(SmlParameters* pars) {
     // TODO(sen) Implement
     return 0;
 }
@@ -205,7 +205,7 @@ sml_mcmc(
     SmlMcmcSettings* settings
 ) {
     SmlParameters pars_cur = *pars_init;
-    double log_prior_prob_cur = sml_log_prior_prob(&pars_cur);
+    double log_prior_prob_cur = sml_log2_prior_prob(&pars_cur);
     double log_likelihood_cur = sml_log2_likelihood(input, &pars_cur, consts);
     double log_posterior_cur = log_prior_prob_cur + log_likelihood_cur;
 
@@ -220,7 +220,7 @@ sml_mcmc(
         pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, steps->baseline_sd);
         pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
 
-        double log_prior_prob_next = sml_log_prior_prob(&pars_next);
+        double log_prior_prob_next = sml_log2_prior_prob(&pars_next);
         double log_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
         double log_posterior_next = log_prior_prob_next + log_likelihood_next;
 
