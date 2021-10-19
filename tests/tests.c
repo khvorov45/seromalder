@@ -9,14 +9,20 @@ void exp_test() {
     double max = 0;
     double step = (max - min) / (double)count;
     double deviation = 0;
+    double deviation_proportion = 0;
     double value = min;
     for (int32_t index = 0; index < count; index++, value += step) {
         double result_sml = sml_pow2(value);
         double result_crt = pow(2.0, value);
         deviation += fabs(result_crt - result_sml);
+        deviation_proportion += fabs(result_crt - result_sml) / result_crt;
     }
     double average_deviation = deviation / (double)count;
-    printf("sml_pow2 average deviation from math.h pow (range %f - %f): %f\n", min, max, average_deviation);
+    double average_deviation_proportion = deviation_proportion / (double)count;
+    printf(
+        "sml_pow2 average deviation from math.h pow (range %f - %f): %f (%.2f%%)\n",
+        min, max, average_deviation, average_deviation_proportion * 100
+    );
 }
 
 void log_test() {
@@ -25,14 +31,20 @@ void log_test() {
     double max = 100000;
     double step = (max - min) / (double)count;
     double deviation = 0;
+    double deviation_proportion = 0;
     double value = min;
     for (int32_t index = 0; index < count; index++, value += step) {
         double result_sml = sml_log2(value);
         double result_crt = log2(value);
         deviation += fabs(result_crt - result_sml);
+        deviation_proportion += fabs(result_crt - result_sml) / result_crt;
     }
     double average_deviation = deviation / (double)count;
-    printf("sml_log2 average deviation from math.h log2 (range %f - %f): %f\n", min, max, average_deviation);
+    double average_deviation_proportion = deviation_proportion / (double)count;
+    printf(
+        "sml_log2 average deviation from math.h log2 (range %f - %f): %f (%.2f%%)\n",
+        min, max, average_deviation, average_deviation_proportion * 100
+    );
 }
 
 void test_log2_normal_pdf() {
@@ -43,13 +55,19 @@ void test_log2_normal_pdf() {
     };
     int32_t count = 7;
     double deviation = 0;
+    double deviation_proportion = 0;
     for (int32_t index = 0; index < count; index++) {
         double result_sml = sml_log2_std_normal_pdf(values[index]);
         double result_r = r_results[index];
         deviation += fabs(result_r - result_sml);
+        deviation_proportion += fabs(result_r - result_sml) / result_r;
     }
     double average_deviation = deviation / (double)count;
-    printf("sml_log2_normal_pdf average deviation from r (range -10 - 10): %f\n", average_deviation);
+    double average_deviation_proportion = deviation_proportion / (double)count;
+    printf(
+        "sml_log2_normal_pdf average deviation from r (range -10 - 10): %f (%.2f%%)\n",
+        average_deviation, average_deviation_proportion * 100
+    );
 }
 
 void test_random_real() {
@@ -73,7 +91,10 @@ void test_random_real() {
         deviation += fabs(proportion - expected_proportion);
     }
     double average_deviation = deviation / n_buckets;
-    printf("average deviation of random_real01: %f\n", average_deviation);
+    printf(
+        "average deviation of random_real01: %f (%.2f%%)\n",
+        average_deviation, average_deviation / expected_proportion * 100
+    );
 }
 
 int
