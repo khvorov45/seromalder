@@ -204,9 +204,9 @@ sml_mcmc(
     SmlMcmcSettings* settings
 ) {
     SmlParameters pars_cur = *pars_init;
-    double log_prior_prob_cur = sml_log2_prior_prob(&pars_cur);
-    double log_likelihood_cur = sml_log2_likelihood(input, &pars_cur, consts);
-    double log_posterior_cur = log_prior_prob_cur + log_likelihood_cur;
+    double log2_prior_prob_cur = sml_log2_prior_prob(&pars_cur);
+    double log2_likelihood_cur = sml_log2_likelihood(input, &pars_cur, consts);
+    double log2_posterior_cur = log2_prior_prob_cur + log2_likelihood_cur;
 
     SmlParameters* steps = &settings->proposal_sds;
 
@@ -219,16 +219,16 @@ sml_mcmc(
         pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, steps->baseline_sd);
         pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
 
-        double log_prior_prob_next = sml_log2_prior_prob(&pars_next);
-        double log_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
-        double log_posterior_next = log_prior_prob_next + log_likelihood_next;
+        double log2_prior_prob_next = sml_log2_prior_prob(&pars_next);
+        double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
+        double log2_posterior_next = log2_prior_prob_next + log2_likelihood_next;
 
-        double log_posterior_diff = log_posterior_next - log_posterior_cur;
+        double log2_posterior_diff = log2_posterior_next - log2_posterior_cur;
 
-        if (log_posterior_diff >= 0) {
+        if (log2_posterior_diff >= 0) {
             pars_cur = pars_next;
-        } else if (log_posterior_diff > -20) {
-            double posterior_ratio = sml_pow2(log_posterior_diff);
+        } else if (log2_posterior_diff > -20) {
+            double posterior_ratio = sml_pow2(log2_posterior_diff);
             if (sml_rbern(posterior_ratio)) {
                 pars_cur = pars_next;
             }

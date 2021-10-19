@@ -6,9 +6,10 @@
   "configurations": [
     {
       "name": "C1",
-      "type": "gdb",
+      "type": "lldb",
       "request": "launch",
       "target": "./examples/c1/c1",
+      "program": "./examples/c1/c1",
       "cwd": "${workspaceRoot}",
       "valuesFormatting": "prettyPrinters"
     },
