@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "random_real.h"
 
 typedef void* SmlAllocator(uint64_t size);
 

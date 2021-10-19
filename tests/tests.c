@@ -52,9 +52,34 @@ void test_log2_normal_pdf() {
     printf("sml_log2_normal_pdf average deviation from r (range -10 - 10): %f\n", average_deviation);
 }
 
+void test_random_real() {
+    pcg64_random_t rng;
+    pcg_setseq_128_srandom_r(&rng, 0, 0);
+    uint32_t n_to_generate = 1000000;
+    const uint32_t n_buckets = 100;
+    uint32_t bucket_counts[n_buckets];
+    for (uint32_t bucket_index = 0; bucket_index < n_buckets; ++bucket_index) {
+        bucket_counts[bucket_index] = 0;
+    }
+    for (uint32_t index = 0; index < n_to_generate; index++) {
+        double random01 = random_real01(&rng);
+        uint32_t bucket_index = (uint32_t)(random01 * n_buckets);
+        bucket_counts[bucket_index] += 1;
+    }
+    double expected_proportion = 1 / (double)n_buckets;
+    double deviation = 0;
+    for (uint32_t bucket_index = 0; bucket_index < n_buckets; ++bucket_index) {
+        double proportion = (double)bucket_counts[bucket_index] / n_to_generate;
+        deviation += fabs(proportion - expected_proportion);
+    }
+    double average_deviation = deviation / n_buckets;
+    printf("average deviation of random_real01: %f\n", average_deviation);
+}
+
 int
 main() {
     exp_test();
     log_test();
     test_log2_normal_pdf();
+    test_random_real();
 }
