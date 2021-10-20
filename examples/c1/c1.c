@@ -39,7 +39,7 @@ main() {
     };
 
     SmlOutput output;
-    output.n_iterations = 10;
+    output.n_iterations = 10000;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlMcmcSettings settings = sml_default_settings();

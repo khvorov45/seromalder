@@ -179,9 +179,10 @@ sml_rnorm01(pcg64_random_t* rng) {
 }
 
 int32_t
-sml_rbern(double prop) {
-    // TODO(sen) Implement
-    return 0;
+sml_rbern(pcg64_random_t* rng, double prop) {
+    double rand01 = random_real01(rng);
+    double result = rand01 <= prop;
+    return result;
 }
 
 double
@@ -278,7 +279,7 @@ sml_mcmc(
             pars_cur = pars_next;
         } else if (log2_posterior_diff > -20) {
             double posterior_ratio = sml_pow2(log2_posterior_diff);
-            if (sml_rbern(posterior_ratio)) {
+            if (sml_rbern(&rng, posterior_ratio)) {
                 pars_cur = pars_next;
             }
         }
