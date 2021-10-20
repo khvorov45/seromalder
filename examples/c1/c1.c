@@ -1,6 +1,8 @@
 #include "../../src/seromalder.c"
 
 #include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
 
 int
 main() {
@@ -28,6 +30,10 @@ main() {
     SmlInput input;
     input.n_individuals = 1000;
     input.data = malloc(input.n_individuals * sizeof(SmlInputIndividual));
+
+    FILE* input_csv_file = fopen("examples/c1/input.csv", "w");
+    char* header = "pid,time,log2titre\n";
+    fwrite(header, strlen(header), 1, input_csv_file);
 
     for (uint64_t individual_index = 0;
         individual_index < input.n_individuals;
@@ -69,8 +75,14 @@ main() {
 
             titre->log2titre =
                 sml_rnorm01(&rng) * pars_true.residual_sd + log2titre_expected;
+
+            char csv_row[64];
+            int csv_row_len = snprintf(csv_row, 64, "%ld,%.0f,%f\n", individual_index, titre_times[titre_index], titre->log2titre);
+            fwrite(csv_row, csv_row_len, 1, input_csv_file);
         }
     }
+
+    fclose(input_csv_file);
 
     SmlOutput output;
     output.n_iterations = 10000;
