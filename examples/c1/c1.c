@@ -21,7 +21,7 @@ main() {
 
     SmlParameters pars_init = {
         .vaccination_log2diff = 2,
-        .baseline = constants.lowest_log2titre,
+        .baseline = sml_log2(10),
         .baseline_sd = 0,
         .wane_rate = 0,
         .residual_sd = 0.2,
@@ -91,6 +91,11 @@ main() {
     SmlMcmcSettings settings = sml_default_settings();
 
     sml_mcmc(&input, &pars_init, &output, &constants, &settings);
+
+    printf(
+        "acceptance rate: %f\n",
+        (double)output.n_accepted / (double)output.n_iterations
+    );
 
     FILE* output_csv = fopen("examples/c1/output.csv", "w");
     char* output_header = "iteration,vaccination_log2diff,baseline,baseline_sd,wane_rate,residual_sd\n";

@@ -43,6 +43,7 @@ typedef struct SmlParameters {
 
 typedef struct SmlOutput {
     uint64_t n_iterations;
+    uint64_t n_accepted;
     SmlParameters* out;
 } SmlOutput;
 
@@ -260,10 +261,14 @@ sml_mcmc(
     double log2_posterior_cur = log2_prior_prob_cur + log2_likelihood_cur;
 
     SmlParameters* steps = &settings->proposal_sds;
-    steps->residual_sd = 0.001;
+    steps->baseline = 1;
+    steps->residual_sd = 1;
 
     pcg64_random_t rng;
     pcg_setseq_128_srandom_r(&rng, 0, 0);
+
+    output->n_accepted = 0;
+    uint32_t latest_n_accepted = 0;
 
     for (uint64_t iteration = 0; iteration < output->n_iterations; iteration++) {
 
@@ -288,15 +293,36 @@ sml_mcmc(
 
         double log2_posterior_diff = log2_posterior_next - log2_posterior_cur;
 
+        int32_t accept = 0;
         if (log2_posterior_diff >= 0) {
-            pars_cur = pars_next;
+            accept = 1;
         } else if (log2_posterior_diff > -20) {
             double posterior_ratio = sml_pow2(log2_posterior_diff);
-            if (sml_rbern(&rng, posterior_ratio)) {
-                pars_cur = pars_next;
-            }
+            accept = sml_rbern(&rng, posterior_ratio);
+        }
+
+        if (accept) {
+            pars_cur = pars_next;
+            ++latest_n_accepted;
+            ++output->n_accepted;
+            log2_prior_prob_cur = log2_prior_prob_next;
+            log2_likelihood_cur = log2_likelihood_next;
+            log2_posterior_cur = log2_posterior_next;
         }
 
         output->out[iteration] = pars_cur;
+
+        if (iteration % 100 == 0 && iteration > 0 && iteration < 10000) {
+            double latest_acceptance_rate = (double)latest_n_accepted / 100;
+            if (latest_acceptance_rate < 0.8) {
+                steps->baseline *= 0.5;
+                steps->residual_sd *= 0.5;
+            } else {
+                steps->baseline *= 2;
+                steps->residual_sd *= 2;
+            }
+            latest_n_accepted = 0;
+        }
+
     } // NOTE(sen) for (iteration)
 }
