@@ -268,6 +268,7 @@ sml_mcmc(
         pars_next.baseline = sml_rnorm01(&rng) * steps->baseline + pars_cur.baseline;
         pars_next.baseline_sd = sml_rnorm01(&rng) * steps->baseline_sd + pars_cur.baseline_sd;
         pars_next.wane_rate = sml_rnorm01(&rng) * steps->wane_rate + pars_cur.wane_rate;
+        pars_next.residual_sd = sml_rnorm01(&rng) * steps->residual_sd + pars_cur.residual_sd;
 
         double log2_prior_prob_next = sml_log2_prior_prob(&pars_next);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
