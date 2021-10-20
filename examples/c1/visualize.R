@@ -21,7 +21,7 @@ output_long <- output %>%
 trace_plots <- output_long %>%
   ggplot(aes(iteration, value)) +
   theme_bw() +
-  facet_wrap(~parameter) +
+  facet_wrap(~parameter, scales = "free_y") +
   geom_line()
 
 ggsave("examples/c1/trace_plots.pdf", trace_plots)

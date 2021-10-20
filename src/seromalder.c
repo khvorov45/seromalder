@@ -67,11 +67,11 @@ sml_default_constants() {
 SmlMcmcSettings
 sml_default_settings() {
     SmlMcmcSettings result;
-    result.proposal_sds.vaccination_log2diff = 1;
-    result.proposal_sds.baseline = 1;
-    result.proposal_sds.baseline_sd = 1;
-    result.proposal_sds.wane_rate = 1;
-    result.proposal_sds.residual_sd = 1;
+    result.proposal_sds.vaccination_log2diff = 0.1;
+    result.proposal_sds.baseline = 0.1;
+    result.proposal_sds.baseline_sd = 0.1;
+    result.proposal_sds.wane_rate = 0.1;
+    result.proposal_sds.residual_sd = 0.1;
     return result;
 }
 
@@ -188,7 +188,9 @@ sml_rbern(pcg64_random_t* rng, double prop) {
 double
 sml_log2_prior_prob(SmlParameters* pars) {
     // TODO(sen) Implement
-    return 0;
+    double result = 0;
+    result += sml_log2_std_normal_pdf((pars->residual_sd - 0.5) / 0.5);
+    return result;
 }
 
 double
@@ -210,7 +212,7 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
 
             SmlInputTitre* titre = individual->titres + titre_index;
 
-            double predicted_titre = consts->lowest_log2titre;
+            double predicted_titre = pars->baseline;
 
             for (uint64_t event_index = 0;
                 event_index < individual->event_count;
@@ -218,7 +220,7 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
 
                 SmlInputEvent* event = individual->events + event_index;
 
-                if (titre->time > event->time) {
+                if (titre->time >= event->time) {
                     if (event->type == SmlEvent_Vaccination) {
                         double time_since = titre->time - event->time;
                         double up_slope = pars->vaccination_log2diff / consts->time_to_peak;
@@ -232,8 +234,8 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
                 }
             } // NOTE(sen) for (event)
 
-            double deviation = titre->log2titre - predicted_titre;
-            double titre_prob = sml_log2_std_normal_pdf((deviation - predicted_titre) / pars->residual_sd);
+            double deviation = predicted_titre - titre->log2titre;
+            double titre_prob = sml_log2_std_normal_pdf(deviation / pars->residual_sd);
             log2_likelihood += titre_prob;
 
         } // NOTE(sen) for (titre)
@@ -271,6 +273,12 @@ sml_mcmc(
         pars_next.baseline_sd = sml_rnorm01(&rng) * steps->baseline_sd + pars_cur.baseline_sd;
         pars_next.wane_rate = sml_rnorm01(&rng) * steps->wane_rate + pars_cur.wane_rate;
         pars_next.residual_sd = sml_rnorm01(&rng) * steps->residual_sd + pars_cur.residual_sd;
+
+        //pars_next.vaccination_log2diff = pars_cur.vaccination_log2diff;
+        //pars_next.baseline = pars_cur.baseline;
+        //pars_next.baseline_sd = pars_cur.baseline_sd;
+        pars_next.wane_rate = pars_cur.wane_rate;
+        //pars_next.residual_sd = pars_cur.residual_sd;
 
         double log2_prior_prob_next = sml_log2_prior_prob(&pars_next);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);

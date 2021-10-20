@@ -48,10 +48,10 @@ void log_test() {
 }
 
 void test_log2_normal_pdf() {
-    double values[] = { -10, -5, -1, 0, 1, 5, 10 };
+    double values[] = { -20, -10, -5, -1, 0, 1, 5, 10, 20 };
     double r_results[] = {
-        -73.4605001091843, -19.3594360758482, -2.04709558518064, -1.32574806473616,
-        -2.04709558518064, -19.3594360758482, -73.4605001091843
+        -289.864756242528812890668, -73.4605001091843, -19.3594360758482, -2.04709558518064, -1.32574806473616,
+        -2.04709558518064, -19.3594360758482, -73.4605001091843, -289.864756242528812890668
     };
     int32_t count = 7;
     double deviation = 0;
@@ -65,7 +65,7 @@ void test_log2_normal_pdf() {
     double average_deviation = deviation / (double)count;
     double average_deviation_proportion = deviation_proportion / (double)count;
     printf(
-        "sml_log2_normal_pdf average deviation from r (range -10 - 10): %f (%.2f%%)\n",
+        "sml_log2_normal_pdf average deviation from r (range -20 - 20): %f (%.2f%%)\n",
         average_deviation, average_deviation_proportion * 100
     );
 }
