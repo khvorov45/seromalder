@@ -85,10 +85,27 @@ main() {
     fclose(input_csv_file);
 
     SmlOutput output;
-    output.n_iterations = 10000;
+    output.n_iterations = 100000;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlMcmcSettings settings = sml_default_settings();
 
     sml_mcmc(&input, &pars_init, &output, &constants, &settings);
+
+    FILE* output_csv = fopen("examples/c1/output.csv", "w");
+    char* output_header = "iteration,vaccination_log2diff,baseline,baseline_sd,wane_rate,residual_sd\n";
+    fwrite(output_header, strlen(output_header), 1, output_csv);
+
+    for (uint32_t iteration_index = 0; iteration_index < output.n_iterations; iteration_index++) {
+        SmlParameters* pars = output.out + iteration_index;
+        char csv_row[64];
+        int csv_row_len = snprintf(
+            csv_row, 64, "%d,%f,%f,%f,%f,%f\n",
+            iteration_index,
+            pars->vaccination_log2diff, pars->baseline, pars->baseline_sd, pars->wane_rate, pars->residual_sd
+        );
+        fwrite(csv_row, csv_row_len, 1, output_csv);
+    }
+
+    fclose(output_csv);
 }
