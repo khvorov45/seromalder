@@ -97,10 +97,90 @@ void test_random_real() {
     );
 }
 
+void
+test_sin() {
+    double pi = 3.141592653589793115997963468544185161590576171875;
+    double min = -100;
+    double max = 100;
+    double step = 0.1;
+    double deviation = 0;
+    double deviation_prop = 0;
+    uint32_t count = 0;
+    for (double test_value = min; test_value <= max; test_value += step, count++) {
+        double sml_result = sml_sin(test_value);
+        double crt_result = sin(test_value);
+        double abs_deviation = abs(sml_result - crt_result);
+        deviation += abs_deviation;
+        deviation_prop += abs_deviation / crt_result;
+    }
+    double av_deviation = deviation / (double)count;
+    double av_deviation_prop = deviation_prop / (double)count;
+    printf(
+        "average deviation of sml_sin from crt sin (range %.0f to %.0f): %f (%.2f%%)\n",
+        min, max, av_deviation, av_deviation_prop * 100
+    );
+}
+
+void
+test_rnorm() {
+    pcg64_random_t rng;
+    pcg_setseq_128_srandom_r(&rng, 0, 0);
+    uint32_t n_to_generate = 1000000;
+    uint32_t n_buckets = 7;
+    double cutoffs[] = {
+        -1.959963984540053605343246090342290699481964111328125,
+        -0.5244005127080406669648482420598156750202178955078125,
+        -0.25334710313579977825071409824886359274387359619140625,
+        0,
+        0.25334710313579977825071409824886359274387359619140625,
+        0.5244005127080406669648482420598156750202178955078125,
+        1.959963984540053605343246090342290699481964111328125
+    };
+    double expected_proportions[] = {
+        0.025,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.975
+    };
+    double bucket_counts[] = {
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+    };
+    for (uint32_t index = 0; index < n_to_generate; index++) {
+        double result1 = sml_rnorm01(&rng);
+        for (uint32_t bucket_index = 0; bucket_index < n_buckets; ++bucket_index) {
+            if (result1 < cutoffs[bucket_index]) {
+                bucket_counts[bucket_index] += 1;
+            }
+        }
+    }
+    double deviation = 0;
+    for (uint32_t bucket_index = 0; bucket_index < n_buckets; ++bucket_index) {
+        double proportion = (double)bucket_counts[bucket_index] / n_to_generate;
+        double expected_proportion = expected_proportions[bucket_index];
+        deviation += fabs(proportion - expected_proportion);
+    }
+    double average_deviation = deviation / n_buckets;
+    printf(
+        "average deviation of sml_rnorm: %f\n",
+        average_deviation
+    );
+}
+
 int
 main() {
     exp_test();
     log_test();
     test_log2_normal_pdf();
     test_random_real();
+    test_sin();
+    test_rnorm();
 }

@@ -13,5 +13,9 @@
     "xend",
     "xored",
     "yend"
-  ]
+  ],
+  "files.associations": {
+    "emmintrin.h": "c",
+    "immintrin.h": "c"
+  }
 }

@@ -1,4 +1,7 @@
 #include <stdint.h>
+
+#include <immintrin.h>
+
 #include "random_real.h"
 
 typedef void* SmlAllocator(uint64_t size);
@@ -103,19 +106,12 @@ sml_log2(double value) {
 
     int64_t bits_in_mantissa = 52;
     int64_t value_exponent_biased = value_bits >> bits_in_mantissa;
-    double closest_whole = (double)(value_exponent_biased - 1023);
 
     int64_t value_remainder_bits = (value_bits & 0x000fffffffffffff) | 0x3ff0000000000000;
     double value_remainder = *(double*)&value_remainder_bits;
-    double value_remainder_m1 = value_remainder - 1;
-    double frac_e = value_remainder_m1 -
-        (value_remainder_m1) * (value_remainder_m1) * 0.5 +
-        (value_remainder_m1) * (value_remainder_m1) * (value_remainder_m1) * 0.33333333333333333;
 
-    double log2e = 1.442695040888963387005;
-    double frac_2 = frac_e * log2e;
-
-    double result = closest_whole + frac_2;
+    double result = (double)(value_exponent_biased)
+        -1024 + value_remainder * (value_remainder * -0.33333333333333333333 + 2) - 0.666666666666666666;
 
     return result;
 }
@@ -129,9 +125,57 @@ sml_log2_std_normal_pdf(double value) {
 }
 
 double
-sml_rnorm(double mean, double sd) {
-    // TODO(sen) Implement
-    return mean;
+sml_sin(double value) {
+    // NOTE(sen) Adapted from
+    // https://github.com/pmttavara/pt_math
+
+    double one_over_two_pi = 0.1591549430918953456082221009637578390538692474365234375;
+    double value_scaled_to_period01 = value * one_over_two_pi;
+
+    double value_scaled_to_period01_rounded = value_scaled_to_period01;
+    *(volatile double*)&value_scaled_to_period01_rounded += 6755399441055744.0;
+    *(volatile double*)&value_scaled_to_period01_rounded -= 6755399441055744.0;
+
+    double value_neg1_1 = value_scaled_to_period01 - value_scaled_to_period01_rounded;
+    double value_neg1_1_abs = value_neg1_1 < 0 ? -value_neg1_1 : value_neg1_1;
+
+    double parabola_div16 = value_neg1_1 * (0.5 - value_neg1_1_abs);
+    double parabola_div16_abs = parabola_div16 < 0 ? -parabola_div16 : parabola_div16;
+
+    double result = parabola_div16 * (57.3460872862336 * parabola_div16_abs + 12.4158695446104);
+
+    return result;
+}
+
+double
+sml_rnorm01(pcg64_random_t* rng) {
+    // NOTE(sen) Box-Muller
+
+    double u1 = random_real01(rng);
+    double u2 = random_real01(rng);
+
+    double log2_u1 = sml_log2(u1);
+    double one_over_log2e = 0.69314718055994528622676398299518041312694549560546875;
+    double ln_u1 = log2_u1 * one_over_log2e;
+    __m128d neg_ln_u1_w = _mm_set_sd(-ln_u1);
+    __m128d sqrt_neg_ln_u1_w = _mm_sqrt_pd(neg_ln_u1_w);
+    double sqrt_neg_ln_u1 = *(double*)&sqrt_neg_ln_u1_w;
+    double sqrt_2 = 1.4142135623730951454746218587388284504413604736328125;
+    double out_a = sqrt_2 * sqrt_neg_ln_u1;
+
+    double two_pi = 6.28318530717958623199592693708837032318115234375;
+    double out_b = two_pi * u2;
+
+    double sin_out_b = sml_sin(out_b);
+
+    double result1 = out_a * sin_out_b;
+
+    // NOTE(sen) Can generate a second one here
+    //double half_pi = 1.5707963267948965579989817342720925807952880859375;
+    //double cos_out_b = sml_sin(out_b + half_pi);
+    //double result2 = out_a * cos_out_b;
+
+    return result1;
 }
 
 int32_t
@@ -211,14 +255,18 @@ sml_mcmc(
 
     SmlParameters* steps = &settings->proposal_sds;
 
+    pcg64_random_t rng;
+    pcg_setseq_128_srandom_r(&rng, 0, 0);
+
     for (uint64_t iteration = 0; iteration < output->n_iterations; iteration++) {
 
         SmlParameters pars_next;
+
         pars_next.vaccination_log2diff =
-            sml_rnorm(pars_cur.vaccination_log2diff, steps->vaccination_log2diff);
-        pars_next.baseline = sml_rnorm(pars_cur.baseline, steps->baseline);
-        pars_next.baseline_sd = sml_rnorm(pars_cur.baseline_sd, steps->baseline_sd);
-        pars_next.wane_rate = sml_rnorm(pars_cur.wane_rate, steps->wane_rate);
+            sml_rnorm01(&rng) * steps->vaccination_log2diff + pars_cur.vaccination_log2diff;
+        pars_next.baseline = sml_rnorm01(&rng) * steps->baseline + pars_cur.baseline;
+        pars_next.baseline_sd = sml_rnorm01(&rng) * steps->baseline_sd + pars_cur.baseline_sd;
+        pars_next.wane_rate = sml_rnorm01(&rng) * steps->wane_rate + pars_cur.wane_rate;
 
         double log2_prior_prob_next = sml_log2_prior_prob(&pars_next);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
