@@ -52,7 +52,7 @@ main() {
             event->time = 0;
         }
 
-        individual->titre_count = 3;
+        individual->titre_count = 1;
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
         double titre_times[3] = { 0, 14, 200 };
 

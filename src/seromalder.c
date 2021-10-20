@@ -117,10 +117,12 @@ sml_log2(double value) {
 }
 
 double
-sml_log2_std_normal_pdf(double value) {
+sml_log2_normal_pdf(double value, double mean, double sd) {
     double log2_one_over_sqrt_2pi = -1.325748064736159248511;
     double half_log2e = 0.7213475204444816935023;
-    double result = log2_one_over_sqrt_2pi - half_log2e * value * value;
+    double log2_sd = sml_log2(sd);
+    double value_sd = (value - mean) / sd;
+    double result = log2_one_over_sqrt_2pi - log2_sd - half_log2e * value_sd * value_sd;
     return result;
 }
 
@@ -189,7 +191,7 @@ double
 sml_log2_prior_prob(SmlParameters* pars) {
     // TODO(sen) Implement
     double result = 0;
-    result += sml_log2_std_normal_pdf((pars->residual_sd - 0.5) / 0.5);
+    //result += sml_log2_std_normal_pdf((pars->residual_sd - 0.5) / 0.5);
     return result;
 }
 
@@ -234,8 +236,7 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
                 }
             } // NOTE(sen) for (event)
 
-            double deviation = predicted_titre - titre->log2titre;
-            double titre_prob = sml_log2_std_normal_pdf(deviation / pars->residual_sd);
+            double titre_prob = sml_log2_normal_pdf(titre->log2titre, predicted_titre, pars->residual_sd);
             log2_likelihood += titre_prob;
 
         } // NOTE(sen) for (titre)
@@ -259,6 +260,7 @@ sml_mcmc(
     double log2_posterior_cur = log2_prior_prob_cur + log2_likelihood_cur;
 
     SmlParameters* steps = &settings->proposal_sds;
+    steps->residual_sd = 0.001;
 
     pcg64_random_t rng;
     pcg_setseq_128_srandom_r(&rng, 0, 0);
@@ -274,9 +276,9 @@ sml_mcmc(
         pars_next.wane_rate = sml_rnorm01(&rng) * steps->wane_rate + pars_cur.wane_rate;
         pars_next.residual_sd = sml_rnorm01(&rng) * steps->residual_sd + pars_cur.residual_sd;
 
-        //pars_next.vaccination_log2diff = pars_cur.vaccination_log2diff;
+        pars_next.vaccination_log2diff = pars_cur.vaccination_log2diff;
         //pars_next.baseline = pars_cur.baseline;
-        //pars_next.baseline_sd = pars_cur.baseline_sd;
+        pars_next.baseline_sd = pars_cur.baseline_sd;
         pars_next.wane_rate = pars_cur.wane_rate;
         //pars_next.residual_sd = pars_cur.residual_sd;
 

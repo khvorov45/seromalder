@@ -25,7 +25,7 @@ void exp_test() {
     );
 }
 
-void log_test() {
+void test_log2() {
     int32_t count = 100;
     double min = 0.000001;
     double max = 100000;
@@ -48,24 +48,26 @@ void log_test() {
 }
 
 void test_log2_normal_pdf() {
-    double values[] = { -20, -10, -5, -1, 0, 1, 5, 10, 20 };
+    double mean = 50;
+    double sd = 100;
+    double values[] = { -50, -10, 0, 15, 35, 50, 75, 100, 150 };
     double r_results[] = {
-        -289.864756242528812890668, -73.4605001091843, -19.3594360758482, -2.04709558518064, -1.32574806473616,
-        -2.04709558518064, -19.3594360758482, -73.4605001091843, -289.864756242528812890668
+        -8.690952, -8.229289, -8.149941, -8.057969,
+        -7.985835, -7.969604, -8.014688, -8.149941, -8.690952
     };
-    int32_t count = 7;
+    int32_t count = 9;
     double deviation = 0;
     double deviation_proportion = 0;
     for (int32_t index = 0; index < count; index++) {
-        double result_sml = sml_log2_std_normal_pdf(values[index]);
+        double result_sml = sml_log2_normal_pdf(values[index], mean, sd);
         double result_r = r_results[index];
         deviation += fabs(result_r - result_sml);
-        deviation_proportion += fabs(result_r - result_sml) / result_r;
+        deviation_proportion += fabs((result_r - result_sml) / result_r);
     }
     double average_deviation = deviation / (double)count;
     double average_deviation_proportion = deviation_proportion / (double)count;
     printf(
-        "sml_log2_normal_pdf average deviation from r (range -20 - 20): %f (%.2f%%)\n",
+        "sml_log2_normal_pdf average deviation from r: %f (%.2f%%)\n",
         average_deviation, average_deviation_proportion * 100
     );
 }
@@ -178,7 +180,7 @@ test_rnorm() {
 int
 main() {
     exp_test();
-    log_test();
+    test_log2();
     test_log2_normal_pdf();
     test_random_real();
     test_sin();
