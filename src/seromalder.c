@@ -200,6 +200,8 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
         individual_index < input->n_individuals;
         individual_index++) {
 
+        // TODO(sen) Random intercept (baseline_sd)
+
         SmlInputIndividual* individual = input->data + individual_index;
 
         for (uint64_t titre_index = 0;
