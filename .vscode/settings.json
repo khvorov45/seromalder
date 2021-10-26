@@ -16,6 +16,7 @@
   ],
   "files.associations": {
     "emmintrin.h": "c",
-    "immintrin.h": "c"
+    "immintrin.h": "c",
+    "stddef.h": "c"
   }
 }

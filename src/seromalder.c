@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stddef.h>
 
 #include <immintrin.h>
 
@@ -43,7 +44,9 @@ typedef struct SmlParameters {
 
 typedef struct SmlOutput {
     uint64_t n_iterations;
-    uint64_t n_accepted;
+    uint64_t n_burn;
+    uint64_t n_accepted_after_burn;
+    uint64_t n_accepted_burn;
     SmlParameters* out;
 } SmlOutput;
 
@@ -52,9 +55,29 @@ typedef struct SmlConstants {
     double lowest_log2titre;
 } SmlConstants;
 
-typedef struct SmlMcmcSettings {
-    SmlParameters proposal_sds;
-} SmlMcmcSettings;
+typedef enum SmlPriorType {
+    SmlPrior_Normal,
+} SmlPriorType;
+
+typedef struct SmlPriorNormal {
+    double mean;
+    double sd;
+} SmlPriorNormal;
+
+typedef struct SmlPrior {
+    SmlPriorType type;
+    union {
+        SmlPriorNormal normal;
+    };
+} SmlPrior;
+
+typedef struct SmlPriors {
+    SmlPrior vaccination_log2diff;
+    SmlPrior baseline;
+    SmlPrior baseline_sd;
+    SmlPrior wane_rate;
+    SmlPrior residual_sd;
+} SmlPriors;
 
 SmlConstants
 sml_default_constants() {
@@ -62,17 +85,6 @@ sml_default_constants() {
         .time_to_peak = 14, // NOTE(sen) Days
         .lowest_log2titre = 2.321928, // NOTE(sen) Log2(5)
     };
-    return result;
-}
-
-SmlMcmcSettings
-sml_default_settings() {
-    SmlMcmcSettings result;
-    result.proposal_sds.vaccination_log2diff = 0.1;
-    result.proposal_sds.baseline = 0.1;
-    result.proposal_sds.baseline_sd = 0.1;
-    result.proposal_sds.wane_rate = 0.1;
-    result.proposal_sds.residual_sd = 0.1;
     return result;
 }
 
@@ -151,6 +163,14 @@ sml_sin(double value) {
 }
 
 double
+sml_sqrt(double value) {
+    __m128d neg_ln_u1_w = _mm_set_sd(value);
+    __m128d sqrt_neg_ln_u1_w = _mm_sqrt_pd(neg_ln_u1_w);
+    double result = *(double*)&sqrt_neg_ln_u1_w;
+    return result;
+}
+
+double
 sml_rnorm01(pcg64_random_t* rng) {
     // NOTE(sen) Box-Muller
 
@@ -160,9 +180,7 @@ sml_rnorm01(pcg64_random_t* rng) {
     double log2_u1 = sml_log2(u1);
     double one_over_log2e = 0.69314718055994528622676398299518041312694549560546875;
     double ln_u1 = log2_u1 * one_over_log2e;
-    __m128d neg_ln_u1_w = _mm_set_sd(-ln_u1);
-    __m128d sqrt_neg_ln_u1_w = _mm_sqrt_pd(neg_ln_u1_w);
-    double sqrt_neg_ln_u1 = *(double*)&sqrt_neg_ln_u1_w;
+    double sqrt_neg_ln_u1 = sml_sqrt(-ln_u1);
     double sqrt_2 = 1.4142135623730951454746218587388284504413604736328125;
     double out_a = sqrt_2 * sqrt_neg_ln_u1;
 
@@ -189,10 +207,12 @@ sml_rbern(pcg64_random_t* rng, double prop) {
 }
 
 double
-sml_log2_prior_prob(SmlParameters* pars) {
+sml_log2_prior_prob(SmlParameters* pars, SmlPriors* priors) {
     // TODO(sen) Implement
     double result = 0;
-    //result += sml_log2_std_normal_pdf((pars->residual_sd - 0.5) / 0.5);
+    result += sml_log2_normal_pdf(
+        pars->baseline, priors->baseline.normal.mean, priors->baseline.normal.sd
+    );
     return result;
 }
 
@@ -247,51 +267,77 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
     return log2_likelihood;
 }
 
+#define sml_member_of(struct_ptr, offset) *(double*)((uint8_t*)(struct_ptr) + offset)
+#define sml_get_sd_of_accepted_mem(pars, max_iter, mem) \
+    sml_get_sd_of_accepted(pars, max_iter, offsetof(SmlParameters, mem))
+
+double
+sml_get_sd_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t offset) {
+    // TODO(sen) What if accepted none (no variance to find)?
+    double first_val = sml_member_of(pars + 0, offset);
+    double sum = first_val;
+    double n_accepted = 1;
+    for (uint32_t index = 1; index < n_accept; index++) {
+        double this_val = sml_member_of(pars + index, offset);
+        sum += this_val;
+        n_accepted += 1;
+    }
+    double mean = sum / n_accepted;
+    double sum_sq_dev = (first_val - mean) * (first_val - mean);
+    for (uint32_t index = 1; index < n_accept; index++) {
+        double this_val = sml_member_of(pars + index, offset);
+        sum_sq_dev += (this_val - mean) * (this_val - mean);
+    }
+    double var = sum_sq_dev / (n_accepted - 1);
+    double sd = sml_sqrt(var);
+    return sd;
+}
+
 void
 sml_mcmc(
     SmlInput* input,
     SmlParameters* pars_init,
     SmlOutput* output,
     SmlConstants* consts,
-    SmlMcmcSettings* settings
+    SmlPriors* priors
 ) {
     SmlParameters pars_cur = *pars_init;
-    double log2_prior_prob_cur = sml_log2_prior_prob(&pars_cur);
+    double log2_prior_prob_cur = sml_log2_prior_prob(&pars_cur, priors);
     double log2_likelihood_cur = sml_log2_likelihood(input, &pars_cur, consts);
-    double log2_posterior_cur = log2_prior_prob_cur + log2_likelihood_cur;
-
-    SmlParameters* steps = &settings->proposal_sds;
-    steps->baseline = 1;
-    steps->residual_sd = 1;
 
     pcg64_random_t rng;
     pcg_setseq_128_srandom_r(&rng, 0, 0);
 
-    output->n_accepted = 0;
-    uint32_t latest_n_accepted = 0;
+    output->n_accepted_after_burn = 0;
+    output->n_accepted_burn = 0;
 
-    for (uint64_t iteration = 0; iteration < output->n_iterations; iteration++) {
+    double baseline_step_sd = priors->baseline.normal.sd;
+    double baseline_step_mean = priors->baseline.normal.mean;
+    uint32_t burn = output->n_burn;
+
+    for (uint64_t iteration = 1; iteration <= output->n_iterations; iteration++) {
 
         SmlParameters pars_next;
 
-        pars_next.vaccination_log2diff =
-            sml_rnorm01(&rng) * steps->vaccination_log2diff + pars_cur.vaccination_log2diff;
-        pars_next.baseline = sml_rnorm01(&rng) * steps->baseline + pars_cur.baseline;
-        pars_next.baseline_sd = sml_rnorm01(&rng) * steps->baseline_sd + pars_cur.baseline_sd;
-        pars_next.wane_rate = sml_rnorm01(&rng) * steps->wane_rate + pars_cur.wane_rate;
-        pars_next.residual_sd = sml_rnorm01(&rng) * steps->residual_sd + pars_cur.residual_sd;
+        if (iteration > burn) {
+            baseline_step_mean = pars_cur.baseline;
+        }
+
+        pars_next.baseline = sml_rnorm01(&rng) * baseline_step_sd + baseline_step_mean;
 
         pars_next.vaccination_log2diff = pars_cur.vaccination_log2diff;
         //pars_next.baseline = pars_cur.baseline;
         pars_next.baseline_sd = pars_cur.baseline_sd;
         pars_next.wane_rate = pars_cur.wane_rate;
-        //pars_next.residual_sd = pars_cur.residual_sd;
+        pars_next.residual_sd = pars_cur.residual_sd;
 
-        double log2_prior_prob_next = sml_log2_prior_prob(&pars_next);
+        double log2_prior_prob_next = sml_log2_prior_prob(&pars_next, priors);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
-        double log2_posterior_next = log2_prior_prob_next + log2_likelihood_next;
 
-        double log2_posterior_diff = log2_posterior_next - log2_posterior_cur;
+        double log2_posterior_diff = log2_likelihood_next - log2_likelihood_cur;
+        if (iteration > burn) {
+            log2_posterior_diff += log2_prior_prob_next - log2_prior_prob_cur;
+        }
 
         int32_t accept = 0;
         if (log2_posterior_diff >= 0) {
@@ -303,26 +349,24 @@ sml_mcmc(
 
         if (accept) {
             pars_cur = pars_next;
-            ++latest_n_accepted;
-            ++output->n_accepted;
+            if (iteration > burn) {
+                ++output->n_accepted_after_burn;
+            } else {
+                ++output->n_accepted_burn;
+            }
             log2_prior_prob_cur = log2_prior_prob_next;
             log2_likelihood_cur = log2_likelihood_next;
-            log2_posterior_cur = log2_posterior_next;
         }
 
-        output->out[iteration] = pars_cur;
-
-        if (iteration % 100 == 0 && iteration > 0 && iteration < 10000) {
-            double latest_acceptance_rate = (double)latest_n_accepted / 100;
-            if (latest_acceptance_rate < 0.8) {
-                steps->baseline *= 0.5;
-                steps->residual_sd *= 0.5;
-            } else {
-                steps->baseline *= 2;
-                steps->residual_sd *= 2;
-            }
-            latest_n_accepted = 0;
+        if (iteration > burn) {
+            output->out[iteration - 1 - (burn - output->n_accepted_burn)] = pars_cur;
+        } else if (accept) {
+            output->out[output->n_accepted_burn - 1] = pars_cur;
         }
 
+        if (iteration == burn) {
+            double mult = 0.05;
+            baseline_step_sd = mult * sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
+        }
     } // NOTE(sen) for (iteration)
 }

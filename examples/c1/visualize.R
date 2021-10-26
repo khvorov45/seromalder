@@ -19,6 +19,7 @@ output_long <- output %>%
   pivot_longer(-iteration, names_to = "parameter", values_to = "value")
 
 trace_plots <- output_long %>%
+  # filter(iteration > 10000) %>%
   ggplot(aes(iteration, value)) +
   theme_bw() +
   facet_wrap(~parameter, scales = "free_y", ncol = 1, strip.position = "right") +

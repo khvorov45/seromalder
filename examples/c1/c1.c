@@ -86,22 +86,25 @@ main() {
 
     SmlOutput output;
     output.n_iterations = 100000;
+    output.n_burn = 10000;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
-    SmlMcmcSettings settings = sml_default_settings();
-
-    sml_mcmc(&input, &pars_init, &output, &constants, &settings);
+    SmlPriors priors;
+    priors.baseline.type = SmlPrior_Normal;
+    priors.baseline.normal.mean = 4.3;
+    priors.baseline.normal.sd = 2;
+    sml_mcmc(&input, &pars_init, &output, &constants, &priors);
 
     printf(
         "acceptance rate: %f\n",
-        (double)output.n_accepted / (double)output.n_iterations
+        (double)output.n_accepted_after_burn / (double)(output.n_iterations - output.n_burn)
     );
 
     FILE* output_csv = fopen("examples/c1/output.csv", "w");
     char* output_header = "iteration,vaccination_log2diff,baseline,baseline_sd,wane_rate,residual_sd\n";
     fwrite(output_header, strlen(output_header), 1, output_csv);
 
-    for (uint32_t iteration_index = 0; iteration_index < output.n_iterations; iteration_index++) {
+    for (uint32_t iteration_index = 0; iteration_index < output.n_iterations - (output.n_burn - output.n_accepted_burn); iteration_index++) {
         SmlParameters* pars = output.out + iteration_index;
         char csv_row[64];
         int csv_row_len = snprintf(
