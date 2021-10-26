@@ -369,6 +369,26 @@ sml_get_sd(SmlDist* dist) {
 }
 
 void
+sml_cholesky(double* in, double* out, int32_t dim) {
+    // Adapted from
+    // https://rosettacode.org/wiki/Cholesky_decomposition#C
+    for (uint32_t out_index = 0; out_index < dim * dim; out_index++) {
+        out[out_index] = 0;
+    }
+    for (int ii = 0; ii < dim; ii++) {
+        for (int jj = 0; jj < (ii + 1); jj++) {
+            double sum = 0;
+            for (int kk = 0; kk < jj; kk++) {
+                sum += out[ii * dim + kk] * out[jj * dim + kk];
+            }
+            out[ii * dim + jj] = (ii == jj) ?
+                sml_sqrt(in[ii * dim + ii] - sum) :
+                (1.0 / out[jj * dim + jj] * (in[ii * dim + jj] - sum));
+        }
+    }
+}
+
+void
 sml_mcmc(
     SmlInput* input,
     SmlParameters* pars_init,
@@ -450,15 +470,12 @@ sml_mcmc(
                 step_dists.baseline.normal.sd = sd_reduction * step_baseline_sd;
                 step_dists.residual_sd.normal.sd = sd_reduction * step_residual_sd_sd;
             } else {
-                // TODO(sen) Use the full variance matrix and multivariate normal sampling
-                double mult = 0.1;
-                mult = mult * mult;
-                step_dists.baseline.type = SmlDist_Normal;
-                step_dists.baseline.normal.sd = mult *
-                    sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
-                step_dists.residual_sd.type = SmlDist_Normal;
-                step_dists.residual_sd.normal.sd = mult *
-                    sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, residual_sd);
+                // TODO(sen)
+                // mean vector
+                // variance matrix
+                // Cholesky decomposition of the variance matrix (with a small multiple of identity added)
+                // standard normal samples (equal to the number of dimensions in the multivariate normal)
+                // multiply Cholesky decomposition by the sample column vector and add the mean vector to that
             }
         }
     } // NOTE(sen) for (iteration)

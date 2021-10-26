@@ -177,6 +177,58 @@ test_rnorm() {
     );
 }
 
+int32_t
+test_mat_equal(double* mat1, double* mat2, uint32_t dim) {
+    for (uint32_t mat_index = 0; mat_index < dim * dim; mat_index++) {
+        if (mat1[mat_index] != mat2[mat_index]) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+void
+test_mat_print(double* mat, uint32_t dim) {
+    for (uint32_t row_index = 0; row_index < dim; row_index++) {
+        for (uint32_t col_index = 0; col_index < dim; col_index++) {
+            double val = mat[row_index * dim + col_index];
+            printf("%f ", val);
+        }
+        printf("\n");
+    }
+}
+
+void
+test_cholesky() {
+    int32_t dim = 2;
+    double* in = malloc(dim * dim * sizeof(double));
+    double* out = malloc(dim * dim * sizeof(double));
+    in[0] = 1;
+    in[1] = 0;
+    in[2] = 0;
+    in[3] = 1;
+    sml_cholesky(in, out, dim);
+    int32_t result1 = test_mat_equal(in, out, dim);
+    printf("cholesky dim2 identity: %d\n", result1);
+
+    //
+    //
+    //
+
+    double* expected = malloc(dim * dim * sizeof(double));
+    in[0] = 25;
+    in[1] = 15;
+    in[2] = 15;
+    in[3] = 18;
+    expected[0] = 5;
+    expected[1] = 0;
+    expected[2] = 3;
+    expected[3] = 3;
+    sml_cholesky(in, out, dim);
+    int32_t result2 = test_mat_equal(expected, out, dim);
+    printf("cholesky dim2 test: %d\n", result2);
+}
+
 int
 main() {
     test_pow2();
@@ -185,4 +237,5 @@ main() {
     test_random_real();
     test_sin();
     test_rnorm();
+    test_cholesky();
 }
