@@ -354,6 +354,20 @@ sml_rdist(pcg64_random_t* rng, SmlDist prior) {
     return result;
 }
 
+double
+sml_get_sd(SmlDist* dist) {
+    double result;
+    switch (dist->type) {
+    case SmlDist_Normal: {
+        result = dist->normal.sd;
+    } break;
+    case SmlDist_NormalLeftTrunc: {
+        result = dist->normal_left_trunc.sd;
+    } break;
+    }
+    return result;
+}
+
 void
 sml_mcmc(
     SmlInput* input,
@@ -373,12 +387,11 @@ sml_mcmc(
     output->n_accepted_burn = 0;
     output->n_burn = output->n_iterations / 10;
 
-    // TODO(sen) Sort out prior distributions
     SmlPriors step_dists = *priors;
-
+    int32_t step_is_prior = 1;
     for (uint64_t iteration = 1; iteration <= output->n_iterations; iteration++) {
 
-        if (iteration > output->n_burn) {
+        if (!step_is_prior) {
             step_dists.baseline.normal.mean = pars_cur.baseline;
             step_dists.residual_sd.normal.mean = pars_cur.residual_sd;
         }
@@ -391,7 +404,7 @@ sml_mcmc(
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
 
         double log2_posterior_diff = log2_likelihood_next - log2_likelihood_cur;
-        if (iteration > output->n_burn) {
+        if (!step_is_prior) {
             log2_posterior_diff += log2_prior_prob_next - log2_prior_prob_cur;
         }
 
@@ -421,21 +434,32 @@ sml_mcmc(
         }
 
         if (iteration == output->n_burn) {
+            step_is_prior = 0;
             if (output->n_accepted_burn < 10) {
+                // NOTE(sen) Switch to normal steps with reduced variances and
+                // continue the burn-in
                 output->n_burn += output->n_iterations / 10;
                 if (output->n_burn > output->n_iterations) {
                     output->n_burn = output->n_iterations;
                 }
+                double step_baseline_sd = sml_get_sd(&step_dists.baseline);
+                double step_residual_sd_sd = sml_get_sd(&step_dists.residual_sd);
+                double sd_reduction = 0.5;
+                step_dists.baseline.type = SmlDist_Normal;
+                step_dists.residual_sd.type = SmlDist_Normal;
+                step_dists.baseline.normal.sd = sd_reduction * step_baseline_sd;
+                step_dists.residual_sd.normal.sd = sd_reduction * step_residual_sd_sd;
+            } else {
+                // TODO(sen) Use the full variance matrix and multivariate normal sampling
+                double mult = 0.1;
+                mult = mult * mult;
+                step_dists.baseline.type = SmlDist_Normal;
+                step_dists.baseline.normal.sd = mult *
+                    sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
+                step_dists.residual_sd.type = SmlDist_Normal;
+                step_dists.residual_sd.normal.sd = mult *
+                    sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, residual_sd);
             }
-            // TODO(sen) Sort out this multiplier
-            double mult = 0.1;
-            mult = mult * mult;
-            step_dists.baseline.type = SmlDist_Normal;
-            step_dists.baseline.normal.sd = mult *
-                sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
-            step_dists.residual_sd.type = SmlDist_Normal;
-            step_dists.residual_sd.normal.sd = mult *
-                sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, residual_sd);
         }
     } // NOTE(sen) for (iteration)
 }
