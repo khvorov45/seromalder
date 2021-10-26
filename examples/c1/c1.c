@@ -24,7 +24,7 @@ main() {
         .baseline = sml_log2(10),
         .baseline_sd = 0,
         .wane_rate = 0,
-        .residual_sd = 0.2,
+        .residual_sd = 1,
     };
 
     SmlInput input;
@@ -90,9 +90,13 @@ main() {
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlPriors priors;
-    priors.baseline.type = SmlPrior_Normal;
+    priors.baseline.type = SmlDist_Normal;
     priors.baseline.normal.mean = 4.3;
     priors.baseline.normal.sd = 2;
+    priors.residual_sd.type = SmlDist_NormalLeftTrunc;
+    priors.residual_sd.normal_left_trunc.mean = 2;
+    priors.residual_sd.normal_left_trunc.sd = 1;
+    priors.residual_sd.normal_left_trunc.min = 0;
     sml_mcmc(&input, &pars_init, &output, &constants, &priors);
 
     printf(

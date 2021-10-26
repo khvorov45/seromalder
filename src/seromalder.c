@@ -55,28 +55,36 @@ typedef struct SmlConstants {
     double lowest_log2titre;
 } SmlConstants;
 
-typedef enum SmlPriorType {
-    SmlPrior_Normal,
-} SmlPriorType;
+typedef enum SmlDistType {
+    SmlDist_Normal,
+    SmlDist_NormalLeftTrunc,
+} SmlDistType;
 
-typedef struct SmlPriorNormal {
+typedef struct SmlDistNormal {
     double mean;
     double sd;
-} SmlPriorNormal;
+} SmlDistNormal;
 
-typedef struct SmlPrior {
-    SmlPriorType type;
+typedef struct SmlDistNormalLeftTrunc {
+    double mean;
+    double sd;
+    double min;
+} SmlDistNormalLeftTrunc;
+
+typedef struct SmlDist {
+    SmlDistType type;
     union {
-        SmlPriorNormal normal;
+        SmlDistNormal normal;
+        SmlDistNormalLeftTrunc normal_left_trunc;
     };
-} SmlPrior;
+} SmlDist;
 
 typedef struct SmlPriors {
-    SmlPrior vaccination_log2diff;
-    SmlPrior baseline;
-    SmlPrior baseline_sd;
-    SmlPrior wane_rate;
-    SmlPrior residual_sd;
+    SmlDist vaccination_log2diff;
+    SmlDist baseline;
+    SmlDist baseline_sd;
+    SmlDist wane_rate;
+    SmlDist residual_sd;
 } SmlPriors;
 
 SmlConstants
@@ -136,6 +144,26 @@ sml_log2_normal_pdf(double value, double mean, double sd) {
     double log2_sd = sml_log2(sd);
     double value_sd = (value - mean) / sd;
     double result = log2_one_over_sqrt_2pi - log2_sd - half_log2e * value_sd * value_sd;
+    return result;
+}
+
+double sml_log2_dist_pdf(double value, SmlDist dist) {
+    double result;
+    switch (dist.type) {
+    case SmlDist_Normal: {
+        result = sml_log2_normal_pdf(value, dist.normal.sd, dist.normal.mean);
+    } break;
+    case SmlDist_NormalLeftTrunc: {
+        if (value < dist.normal_left_trunc.min) {
+            uint64_t bits = (uint64_t)0xFFF << 52;
+            result = *(double*)&bits;
+        } else {
+            result = sml_log2_normal_pdf(
+                value, dist.normal_left_trunc.mean, dist.normal_left_trunc.sd
+            );
+        }
+    } break;
+    }
     return result;
 }
 
@@ -199,6 +227,22 @@ sml_rnorm01(pcg64_random_t* rng) {
     return result1;
 }
 
+double
+sml_rnorm(pcg64_random_t* rng, double mean, double sd) {
+    double result = sml_rnorm01(rng) * sd + mean;
+    return result;
+}
+
+double
+sml_rnorm_left_trunc(pcg64_random_t* rng, double mean, double sd, double min) {
+    for (;;) {
+        double result = sml_rnorm(rng, mean, sd);
+        if (result > min) {
+            return result;
+        }
+    }
+}
+
 int32_t
 sml_rbern(pcg64_random_t* rng, double prop) {
     double rand01 = random_real01(rng);
@@ -208,11 +252,9 @@ sml_rbern(pcg64_random_t* rng, double prop) {
 
 double
 sml_log2_prior_prob(SmlParameters* pars, SmlPriors* priors) {
-    // TODO(sen) Implement
     double result = 0;
-    result += sml_log2_normal_pdf(
-        pars->baseline, priors->baseline.normal.mean, priors->baseline.normal.sd
-    );
+    result += sml_log2_dist_pdf(pars->baseline, priors->baseline);
+    result += sml_log2_dist_pdf(pars->residual_sd, priors->residual_sd);
     return result;
 }
 
@@ -293,6 +335,25 @@ sml_get_sd_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t offset) 
     return sd;
 }
 
+double
+sml_rdist(pcg64_random_t* rng, SmlDist prior) {
+    double result;
+    switch (prior.type) {
+    case SmlDist_Normal: {
+        result = sml_rnorm(rng, prior.normal.mean, prior.normal.sd);
+    } break;
+    case SmlDist_NormalLeftTrunc: {
+        result = sml_rnorm_left_trunc(
+            rng,
+            prior.normal_left_trunc.mean,
+            prior.normal_left_trunc.sd,
+            prior.normal_left_trunc.min
+        );
+    } break;
+    }
+    return result;
+}
+
 void
 sml_mcmc(
     SmlInput* input,
@@ -311,25 +372,20 @@ sml_mcmc(
     output->n_accepted_after_burn = 0;
     output->n_accepted_burn = 0;
 
-    double baseline_step_sd = priors->baseline.normal.sd;
-    double baseline_step_mean = priors->baseline.normal.mean;
+    SmlPriors step_dists = *priors;
+
     uint32_t burn = output->n_burn;
 
     for (uint64_t iteration = 1; iteration <= output->n_iterations; iteration++) {
 
-        SmlParameters pars_next;
-
         if (iteration > burn) {
-            baseline_step_mean = pars_cur.baseline;
+            step_dists.baseline.normal.mean = pars_cur.baseline;
+            step_dists.residual_sd.normal.mean = pars_cur.residual_sd;
         }
 
-        pars_next.baseline = sml_rnorm01(&rng) * baseline_step_sd + baseline_step_mean;
-
-        pars_next.vaccination_log2diff = pars_cur.vaccination_log2diff;
-        //pars_next.baseline = pars_cur.baseline;
-        pars_next.baseline_sd = pars_cur.baseline_sd;
-        pars_next.wane_rate = pars_cur.wane_rate;
-        pars_next.residual_sd = pars_cur.residual_sd;
+        SmlParameters pars_next = pars_cur;
+        pars_next.baseline = sml_rdist(&rng, step_dists.baseline);
+        pars_next.residual_sd = sml_rdist(&rng, step_dists.residual_sd);
 
         double log2_prior_prob_next = sml_log2_prior_prob(&pars_next, priors);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
@@ -365,8 +421,15 @@ sml_mcmc(
         }
 
         if (iteration == burn) {
-            double mult = 0.05;
-            baseline_step_sd = mult * sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
+            // TODO(sen) Sort out this multiplier
+            double mult = 0.1;
+            mult = mult * mult;
+            step_dists.baseline.type = SmlDist_Normal;
+            step_dists.baseline.normal.sd = mult *
+                sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, baseline);
+            step_dists.residual_sd.type = SmlDist_Normal;
+            step_dists.residual_sd.normal.sd = mult *
+                sml_get_sd_of_accepted_mem(output->out, output->n_accepted_burn, residual_sd);
         }
     } // NOTE(sen) for (iteration)
 }
