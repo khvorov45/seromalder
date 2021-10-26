@@ -86,7 +86,6 @@ main() {
 
     SmlOutput output;
     output.n_iterations = 100000;
-    output.n_burn = 10000;
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlPriors priors;

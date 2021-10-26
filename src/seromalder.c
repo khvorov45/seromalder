@@ -371,14 +371,14 @@ sml_mcmc(
 
     output->n_accepted_after_burn = 0;
     output->n_accepted_burn = 0;
+    output->n_burn = output->n_iterations / 10;
 
+    // TODO(sen) Sort out prior distributions
     SmlPriors step_dists = *priors;
-
-    uint32_t burn = output->n_burn;
 
     for (uint64_t iteration = 1; iteration <= output->n_iterations; iteration++) {
 
-        if (iteration > burn) {
+        if (iteration > output->n_burn) {
             step_dists.baseline.normal.mean = pars_cur.baseline;
             step_dists.residual_sd.normal.mean = pars_cur.residual_sd;
         }
@@ -391,21 +391,21 @@ sml_mcmc(
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
 
         double log2_posterior_diff = log2_likelihood_next - log2_likelihood_cur;
-        if (iteration > burn) {
+        if (iteration > output->n_burn) {
             log2_posterior_diff += log2_prior_prob_next - log2_prior_prob_cur;
         }
 
         int32_t accept = 0;
         if (log2_posterior_diff >= 0) {
             accept = 1;
-        } else if (log2_posterior_diff > -20) {
+        } else if (log2_posterior_diff > -50) {
             double posterior_ratio = sml_pow2(log2_posterior_diff);
             accept = sml_rbern(&rng, posterior_ratio);
         }
 
         if (accept) {
             pars_cur = pars_next;
-            if (iteration > burn) {
+            if (iteration > output->n_burn) {
                 ++output->n_accepted_after_burn;
             } else {
                 ++output->n_accepted_burn;
@@ -414,13 +414,19 @@ sml_mcmc(
             log2_likelihood_cur = log2_likelihood_next;
         }
 
-        if (iteration > burn) {
-            output->out[iteration - 1 - (burn - output->n_accepted_burn)] = pars_cur;
+        if (iteration > output->n_burn) {
+            output->out[iteration - 1 - (output->n_burn - output->n_accepted_burn)] = pars_cur;
         } else if (accept) {
             output->out[output->n_accepted_burn - 1] = pars_cur;
         }
 
-        if (iteration == burn) {
+        if (iteration == output->n_burn) {
+            if (output->n_accepted_burn < 10) {
+                output->n_burn += output->n_iterations / 10;
+                if (output->n_burn > output->n_iterations) {
+                    output->n_burn = output->n_iterations;
+                }
+            }
             // TODO(sen) Sort out this multiplier
             double mult = 0.1;
             mult = mult * mult;

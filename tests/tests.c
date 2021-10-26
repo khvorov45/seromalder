@@ -3,9 +3,9 @@
 #include "math.h"
 #include "stdio.h"
 
-void exp_test() {
+void test_pow2() {
     int32_t count = 100;
-    double min = -20;
+    double min = -50;
     double max = 0;
     double step = (max - min) / (double)count;
     double deviation = 0;
@@ -179,7 +179,7 @@ test_rnorm() {
 
 int
 main() {
-    exp_test();
+    test_pow2();
     test_log2();
     test_log2_normal_pdf();
     test_random_real();
