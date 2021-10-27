@@ -425,8 +425,6 @@ sml_cholesky(double* in, double* out, int32_t dim) {
     // Adapted from
     // https://rosettacode.org/wiki/Cholesky_decomposition#C
 
-    // TODO(sen) see if I need to add a small multiple of identity
-
     for (uint32_t out_index = 0; out_index < dim * dim; out_index++) {
         out[out_index] = 0;
     }
@@ -532,11 +530,16 @@ sml_mcmc(
                 double var_reduction = 0.0025;
                 for (uint32_t index1 = 0; index1 < step->dim; index1++) {
                     for (uint32_t index2 = 0; index2 < step->dim; index2++) {
-                        step->var[index1 * step->dim + index2] = var_reduction *
-                            sml_get_cov(
-                                output->out, output->n_accepted_burn, index1, index2
-                            );
+                        uint32_t var_index = index1 * step->dim + index2;
+                        step->var[var_index] = sml_get_cov(
+                            output->out, output->n_accepted_burn, index1, index2
+                        );
+                        step->var[var_index] *= var_reduction;
                     }
+                }
+                double epsilon = 0.000000001;
+                for (uint32_t index = 0; index < step->dim; index++) {
+                    step->var[index * step->dim + index] += var_reduction * epsilon;
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
 
