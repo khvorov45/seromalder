@@ -515,6 +515,8 @@ sml_mcmc(
             output->out[output->n_accepted_burn - 1] = pars_cur;
         }
 
+        double var_reduction = 0.0025;
+        double epsilon = 0.000000001;
         if (iteration == output->n_burn) {
             if (output->n_accepted_burn < 10) {
                 // NOTE(sen) Reduce step variances and continue
@@ -527,7 +529,6 @@ sml_mcmc(
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
             } else {
-                double var_reduction = 0.0025;
                 for (uint32_t index1 = 0; index1 < step->dim; index1++) {
                     for (uint32_t index2 = 0; index2 < step->dim; index2++) {
                         uint32_t var_index = index1 * step->dim + index2;
@@ -537,12 +538,10 @@ sml_mcmc(
                         step->var[var_index] *= var_reduction;
                     }
                 }
-                double epsilon = 0.000000001;
                 for (uint32_t index = 0; index < step->dim; index++) {
                     step->var[index * step->dim + index] += var_reduction * epsilon;
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
-
             }
         }
     } // NOTE(sen) for (iteration)
