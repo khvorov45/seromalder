@@ -530,12 +530,15 @@ sml_mcmc(
                 sml_cholesky(step->var, step->chol, step->dim);
             } else {
                 for (uint32_t index1 = 0; index1 < step->dim; index1++) {
-                    for (uint32_t index2 = 0; index2 < step->dim; index2++) {
-                        uint32_t var_index = index1 * step->dim + index2;
-                        step->var[var_index] = sml_get_cov(
+                    for (uint32_t index2 = index1; index2 < step->dim; index2++) {
+                        double cov = sml_get_cov(
                             output->out, output->n_accepted_burn, index1, index2
                         );
-                        step->var[var_index] *= var_reduction;
+                        double cov_reduced = cov * var_reduction;
+                        uint32_t var_index = index1 * step->dim + index2;
+                        uint32_t var_index_symmetric = index2 * step->dim + index1;
+                        step->var[var_index] = cov_reduced;
+                        step->var[var_index_symmetric] = cov_reduced;
                     }
                 }
                 for (uint32_t index = 0; index < step->dim; index++) {
