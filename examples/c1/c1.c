@@ -15,7 +15,7 @@ main() {
         .baseline = constants.lowest_log2titre,
         .residual_sd = 0.2,
         .vaccination_log2diff = 2,
-        .wane_rate = 0,
+        .wane_rate = 0.005,
         .baseline_sd = 0,
     };
 
@@ -52,7 +52,7 @@ main() {
             event->time = 0;
         }
 
-        individual->titre_count = 2;
+        individual->titre_count = 3;
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
         double titre_times[3] = { 0, 14, 200 };
 
@@ -100,9 +100,12 @@ main() {
     priors.vaccination_log2diff.type = SmlDist_Normal;
     priors.vaccination_log2diff.normal.mean = 2;
     priors.vaccination_log2diff.normal.sd = 2;
+    priors.wane_rate.type = SmlDist_Normal;
+    priors.wane_rate.normal.mean = 0;
+    priors.wane_rate.normal.sd = 1;
 
     SmlStep step;
-    step.dim = 3;
+    step.dim = 4;
     step.mean = malloc(sizeof(double) * step.dim);
     step.var = malloc(sizeof(double) * step.dim * step.dim);
     step.chol = malloc(sizeof(double) * step.dim * step.dim);
