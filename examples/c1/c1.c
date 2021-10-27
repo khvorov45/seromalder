@@ -12,19 +12,19 @@ main() {
     SmlConstants constants = sml_default_constants();
 
     SmlParameters pars_true = {
-        .vaccination_log2diff = 2,
         .baseline = constants.lowest_log2titre,
-        .baseline_sd = 0,
-        .wane_rate = 0,
         .residual_sd = 0.2,
+        .vaccination_log2diff = 2,
+        .wane_rate = 0,
+        .baseline_sd = 0,
     };
 
     SmlParameters pars_init = {
-        .vaccination_log2diff = 2,
         .baseline = sml_log2(10),
-        .baseline_sd = 0,
-        .wane_rate = 0,
+        .vaccination_log2diff = 2,
         .residual_sd = 1,
+        .wane_rate = 0,
+        .baseline_sd = 0,
     };
 
     SmlInput input;
@@ -89,6 +89,7 @@ main() {
     output.out = malloc(output.n_iterations * sizeof(SmlParameters));
 
     SmlPriors priors;
+    memset(&priors, 0, sizeof(priors));
     priors.baseline.type = SmlDist_Normal;
     priors.baseline.normal.mean = 4.3;
     priors.baseline.normal.sd = 2;
@@ -96,7 +97,15 @@ main() {
     priors.residual_sd.normal_left_trunc.mean = 2;
     priors.residual_sd.normal_left_trunc.sd = 1;
     priors.residual_sd.normal_left_trunc.min = 0;
-    sml_mcmc(&input, &pars_init, &output, &constants, &priors);
+
+    SmlStep step;
+    step.dim = 2;
+    step.mean = malloc(sizeof(double) * step.dim);
+    step.var = malloc(sizeof(double) * step.dim * step.dim);
+    step.chol = malloc(sizeof(double) * step.dim * step.dim);
+    step.std_norm = malloc(sizeof(double) * step.dim);
+
+    sml_mcmc(&input, &pars_init, &output, &constants, &priors, &step);
 
     printf(
         "acceptance rate: %f\n",

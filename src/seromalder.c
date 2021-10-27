@@ -34,12 +34,16 @@ typedef struct SmlInput {
     SmlInputIndividual* data;
 } SmlInput;
 
-typedef struct SmlParameters {
-    double vaccination_log2diff;
-    double baseline;
-    double baseline_sd;
-    double wane_rate;
-    double residual_sd;
+typedef union SmlParameters {
+    // NOTE(sen) Make sure order is the same as SmlPriors
+    struct {
+        double baseline;
+        double residual_sd;
+        double vaccination_log2diff;
+        double wane_rate;
+        double baseline_sd;
+    };
+    double par[5];
 } SmlParameters;
 
 typedef struct SmlOutput {
@@ -79,13 +83,25 @@ typedef struct SmlDist {
     };
 } SmlDist;
 
-typedef struct SmlPriors {
-    SmlDist vaccination_log2diff;
-    SmlDist baseline;
-    SmlDist baseline_sd;
-    SmlDist wane_rate;
-    SmlDist residual_sd;
+typedef union SmlPriors {
+    // NOTE(sen) Make sure order is the same as SmlParameters
+    struct {
+        SmlDist baseline;
+        SmlDist residual_sd;
+        SmlDist vaccination_log2diff;
+        SmlDist wane_rate;
+        SmlDist baseline_sd;
+    };
+    SmlDist dist[5];
 } SmlPriors;
+
+typedef struct SmlStep {
+    uint32_t dim;
+    double* mean;
+    double* var;
+    double* chol;
+    double* std_norm;
+} SmlStep;
 
 SmlConstants
 sml_default_constants() {
@@ -147,7 +163,8 @@ sml_log2_normal_pdf(double value, double mean, double sd) {
     return result;
 }
 
-double sml_log2_dist_pdf(double value, SmlDist dist) {
+double
+sml_log2_dist_pdf(double value, SmlDist dist) {
     double result;
     switch (dist.type) {
     case SmlDist_Normal: {
@@ -228,6 +245,15 @@ sml_rnorm01(pcg64_random_t* rng) {
 }
 
 double
+sml_dot(double* vec1, double* vec2, uint32_t dim) {
+    double result = 0;
+    for (uint32_t index = 0; index < dim; index++) {
+        result += vec1[index] * vec2[index];
+    }
+    return result;
+}
+
+double
 sml_rnorm(pcg64_random_t* rng, double mean, double sd) {
     double result = sml_rnorm01(rng) * sd + mean;
     return result;
@@ -240,6 +266,17 @@ sml_rnorm_left_trunc(pcg64_random_t* rng, double mean, double sd, double min) {
         if (result > min) {
             return result;
         }
+    }
+}
+
+void
+sml_rnorm_mul(pcg64_random_t* rng, double* dest, double* mean, double* chol, double* std_norm, uint32_t dim) {
+    for (uint32_t index = 0; index < dim; index++) {
+        std_norm[index] = sml_rnorm01(rng);
+    }
+    for (uint32_t index = 0; index < dim; index++) {
+        double chol_dot_sample = sml_dot(chol + index * dim, std_norm, dim);
+        dest[index] = chol_dot_sample + mean[index];
     }
 }
 
@@ -309,30 +346,31 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
     return log2_likelihood;
 }
 
-#define sml_member_of(struct_ptr, offset) *(double*)((uint8_t*)(struct_ptr) + offset)
-#define sml_get_sd_of_accepted_mem(pars, max_iter, mem) \
-    sml_get_sd_of_accepted(pars, max_iter, offsetof(SmlParameters, mem))
+double sml_get_mean_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t par_index) {
+    double first_val = pars[0].par[par_index];
+    double sum = first_val;
+    for (uint32_t index = 1; index < n_accept; index++) {
+        double this_val = pars[index].par[par_index];
+        sum += this_val;
+    }
+    double mean = sum / n_accept;
+    return mean;
+}
 
 double
-sml_get_sd_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t offset) {
-    // TODO(sen) What if accepted none (no variance to find)?
-    double first_val = sml_member_of(pars + 0, offset);
-    double sum = first_val;
-    double n_accepted = 1;
+sml_get_cov_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t par_index1, uint32_t par_index2) {
+    double mean1 = sml_get_mean_of_accepted(pars, n_accept, par_index1);
+    double mean2 = sml_get_mean_of_accepted(pars, n_accept, par_index2);
+    double first_val1 = pars[0].par[par_index1];
+    double first_val2 = pars[0].par[par_index2];
+    double sum_dev = (first_val1 - mean1) * (first_val2 - mean2);
     for (uint32_t index = 1; index < n_accept; index++) {
-        double this_val = sml_member_of(pars + index, offset);
-        sum += this_val;
-        n_accepted += 1;
+        double this_val1 = pars[index].par[par_index1];
+        double this_val2 = pars[index].par[par_index2];
+        sum_dev += (this_val1 - mean1) * (this_val2 - mean2);
     }
-    double mean = sum / n_accepted;
-    double sum_sq_dev = (first_val - mean) * (first_val - mean);
-    for (uint32_t index = 1; index < n_accept; index++) {
-        double this_val = sml_member_of(pars + index, offset);
-        sum_sq_dev += (this_val - mean) * (this_val - mean);
-    }
-    double var = sum_sq_dev / (n_accepted - 1);
-    double sd = sml_sqrt(var);
-    return sd;
+    double cov = sum_dev / (n_accept - 1);
+    return cov;
 }
 
 double
@@ -349,6 +387,20 @@ sml_rdist(pcg64_random_t* rng, SmlDist prior) {
             prior.normal_left_trunc.sd,
             prior.normal_left_trunc.min
         );
+    } break;
+    }
+    return result;
+}
+
+double
+sml_get_var(SmlDist* dist) {
+    double result;
+    switch (dist->type) {
+    case SmlDist_Normal: {
+        result = dist->normal.sd * dist->normal.sd;
+    } break;
+    case SmlDist_NormalLeftTrunc: {
+        result = dist->normal_left_trunc.sd * dist->normal_left_trunc.sd;
     } break;
     }
     return result;
@@ -372,9 +424,13 @@ void
 sml_cholesky(double* in, double* out, int32_t dim) {
     // Adapted from
     // https://rosettacode.org/wiki/Cholesky_decomposition#C
+
+    // TODO(sen) see if I need to add a small multiple of identity
+
     for (uint32_t out_index = 0; out_index < dim * dim; out_index++) {
         out[out_index] = 0;
     }
+
     for (int ii = 0; ii < dim; ii++) {
         for (int jj = 0; jj < (ii + 1); jj++) {
             double sum = 0;
@@ -389,12 +445,20 @@ sml_cholesky(double* in, double* out, int32_t dim) {
 }
 
 void
+sml_set_vec(double* dest, double* source, uint32_t dim) {
+    for (uint32_t index = 0; index < dim; index++) {
+        dest[index] = source[index];
+    }
+}
+
+void
 sml_mcmc(
     SmlInput* input,
     SmlParameters* pars_init,
     SmlOutput* output,
     SmlConstants* consts,
-    SmlPriors* priors
+    SmlPriors* priors,
+    SmlStep* step
 ) {
     SmlParameters pars_cur = *pars_init;
     double log2_prior_prob_cur = sml_log2_prior_prob(&pars_cur, priors);
@@ -407,26 +471,26 @@ sml_mcmc(
     output->n_accepted_burn = 0;
     output->n_burn = output->n_iterations / 10;
 
-    SmlPriors step_dists = *priors;
-    int32_t step_is_prior = 1;
+    for (uint32_t step_index = 0; step_index < step->dim * step->dim; step_index++) {
+        step->var[step_index] = 0;
+    }
+    for (uint32_t step_index = 0; step_index < step->dim; step_index++) {
+        step->var[step_index * step->dim + step_index] = sml_get_var(priors->dist + step_index);
+    }
+    sml_cholesky(step->var, step->chol, step->dim);
+
     for (uint64_t iteration = 1; iteration <= output->n_iterations; iteration++) {
 
-        if (!step_is_prior) {
-            step_dists.baseline.normal.mean = pars_cur.baseline;
-            step_dists.residual_sd.normal.mean = pars_cur.residual_sd;
-        }
+        sml_set_vec(step->mean, pars_cur.par, step->dim);
 
         SmlParameters pars_next = pars_cur;
-        pars_next.baseline = sml_rdist(&rng, step_dists.baseline);
-        pars_next.residual_sd = sml_rdist(&rng, step_dists.residual_sd);
+        sml_rnorm_mul(&rng, pars_next.par, step->mean, step->chol, step->std_norm, step->dim);
 
         double log2_prior_prob_next = sml_log2_prior_prob(&pars_next, priors);
         double log2_likelihood_next = sml_log2_likelihood(input, &pars_next, consts);
 
-        double log2_posterior_diff = log2_likelihood_next - log2_likelihood_cur;
-        if (!step_is_prior) {
-            log2_posterior_diff += log2_prior_prob_next - log2_prior_prob_cur;
-        }
+        double log2_posterior_diff = log2_likelihood_next + log2_prior_prob_next
+            - log2_likelihood_cur - log2_prior_prob_cur;
 
         int32_t accept = 0;
         if (log2_posterior_diff >= 0) {
@@ -454,28 +518,28 @@ sml_mcmc(
         }
 
         if (iteration == output->n_burn) {
-            step_is_prior = 0;
             if (output->n_accepted_burn < 10) {
-                // NOTE(sen) Switch to normal steps with reduced variances and
-                // continue the burn-in
+                // NOTE(sen) Reduce step variances and continue
                 output->n_burn += output->n_iterations / 10;
                 if (output->n_burn > output->n_iterations) {
                     output->n_burn = output->n_iterations;
                 }
-                double step_baseline_sd = sml_get_sd(&step_dists.baseline);
-                double step_residual_sd_sd = sml_get_sd(&step_dists.residual_sd);
-                double sd_reduction = 0.5;
-                step_dists.baseline.type = SmlDist_Normal;
-                step_dists.residual_sd.type = SmlDist_Normal;
-                step_dists.baseline.normal.sd = sd_reduction * step_baseline_sd;
-                step_dists.residual_sd.normal.sd = sd_reduction * step_residual_sd_sd;
+                for (uint32_t step_index = 0; step_index < step->dim; step_index++) {
+                    step->var[step_index * step->dim + step_index] *= 0.5;
+                }
+                sml_cholesky(step->var, step->chol, step->dim);
             } else {
-                // TODO(sen)
-                // mean vector
-                // variance matrix
-                // Cholesky decomposition of the variance matrix (with a small multiple of identity added)
-                // standard normal samples (equal to the number of dimensions in the multivariate normal)
-                // multiply Cholesky decomposition by the sample column vector and add the mean vector to that
+                double var_reduction = 0.0025;
+                for (uint32_t index1 = 0; index1 < step->dim; index1++) {
+                    for (uint32_t index2 = 0; index2 < step->dim; index2++) {
+                        step->var[index1 * step->dim + index2] = var_reduction *
+                            sml_get_cov_of_accepted(
+                                output->out, output->n_accepted_burn, index1, index2
+                            );
+                    }
+                }
+                sml_cholesky(step->var, step->chol, step->dim);
+
             }
         }
     } // NOTE(sen) for (iteration)

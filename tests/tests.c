@@ -101,7 +101,6 @@ void test_random_real() {
 
 void
 test_sin() {
-    double pi = 3.141592653589793115997963468544185161590576171875;
     double min = -100;
     double max = 100;
     double step = 0.1;
