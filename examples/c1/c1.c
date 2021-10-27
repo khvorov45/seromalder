@@ -52,7 +52,7 @@ main() {
             event->time = 0;
         }
 
-        individual->titre_count = 1;
+        individual->titre_count = 2;
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
         double titre_times[3] = { 0, 14, 200 };
 
@@ -97,9 +97,12 @@ main() {
     priors.residual_sd.normal_left_trunc.mean = 2;
     priors.residual_sd.normal_left_trunc.sd = 1;
     priors.residual_sd.normal_left_trunc.min = 0;
+    priors.vaccination_log2diff.type = SmlDist_Normal;
+    priors.vaccination_log2diff.normal.mean = 2;
+    priors.vaccination_log2diff.normal.sd = 2;
 
     SmlStep step;
-    step.dim = 2;
+    step.dim = 3;
     step.mean = malloc(sizeof(double) * step.dim);
     step.var = malloc(sizeof(double) * step.dim * step.dim);
     step.chol = malloc(sizeof(double) * step.dim * step.dim);
