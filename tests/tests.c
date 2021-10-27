@@ -228,6 +228,29 @@ test_cholesky() {
     printf("cholesky dim2 test: %d\n", result2);
 }
 
+void
+test_cov() {
+    uint32_t size = 3;
+    SmlParameters* pars = malloc(sizeof(SmlParameters) * size);
+
+    pars[0].par[0] = 1;
+    pars[1].par[0] = 2;
+    pars[2].par[0] = 3;
+
+    pars[0].par[1] = 6;
+    pars[1].par[1] = 5;
+    pars[2].par[1] = 4;
+
+    double cov00 = sml_get_cov(pars, size, 0, 0);
+    double cov01 = sml_get_cov(pars, size, 0, 1);
+    double cov10 = sml_get_cov(pars, size, 1, 0);
+    double cov11 = sml_get_cov(pars, size, 1, 1);
+
+    int32_t result = cov00 == 1 && cov01 == -1 && cov10 == -1 && cov11 == 1;
+
+    printf("cov test: %d\n", result);
+}
+
 int
 main() {
     test_pow2();
@@ -237,4 +260,5 @@ main() {
     test_sin();
     test_rnorm();
     test_cholesky();
+    test_cov();
 }

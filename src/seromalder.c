@@ -358,7 +358,7 @@ double sml_get_mean_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t
 }
 
 double
-sml_get_cov_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t par_index1, uint32_t par_index2) {
+sml_get_cov(SmlParameters* pars, uint64_t n_accept, uint32_t par_index1, uint32_t par_index2) {
     double mean1 = sml_get_mean_of_accepted(pars, n_accept, par_index1);
     double mean2 = sml_get_mean_of_accepted(pars, n_accept, par_index2);
     double first_val1 = pars[0].par[par_index1];
@@ -533,7 +533,7 @@ sml_mcmc(
                 for (uint32_t index1 = 0; index1 < step->dim; index1++) {
                     for (uint32_t index2 = 0; index2 < step->dim; index2++) {
                         step->var[index1 * step->dim + index2] = var_reduction *
-                            sml_get_cov_of_accepted(
+                            sml_get_cov(
                                 output->out, output->n_accepted_burn, index1, index2
                             );
                     }
