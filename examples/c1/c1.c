@@ -13,10 +13,9 @@ main() {
 
     SmlParameters pars_true = {
         .baseline = constants.lowest_log2titre,
-        .residual_sd = 0.2,
+        .residual_sd = 0.5,
         .vaccination_log2diff = 2,
         .wane_rate = 0.005,
-        .baseline_sd = 0,
     };
 
     SmlParameters pars_init = {
@@ -24,7 +23,6 @@ main() {
         .vaccination_log2diff = 2,
         .residual_sd = 1,
         .wane_rate = 0,
-        .baseline_sd = 0,
     };
 
     SmlInput input;
@@ -56,6 +54,8 @@ main() {
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
         double titre_times[3] = { 0, 14, 200 };
 
+        double random_intercept = sml_rnorm(&rng, 0, 0);
+
         for (uint64_t titre_index = 0;
             titre_index < individual->titre_count;
             titre_index++) {
@@ -74,10 +74,13 @@ main() {
                 (time_since - constants.time_to_peak);
 
             titre->log2titre =
-                sml_rnorm01(&rng) * pars_true.residual_sd + log2titre_expected;
+                sml_rnorm01(&rng) * pars_true.residual_sd + log2titre_expected + random_intercept;
 
             char csv_row[64];
-            int csv_row_len = snprintf(csv_row, 64, "%ld,%.0f,%f\n", individual_index, titre_times[titre_index], titre->log2titre);
+            int csv_row_len = snprintf(
+                csv_row, 64, "%ld,%.0f,%f\n",
+                individual_index, titre_times[titre_index], titre->log2titre
+            );
             fwrite(csv_row, csv_row_len, 1, input_csv_file);
         }
     }
@@ -119,16 +122,16 @@ main() {
     );
 
     FILE* output_csv = fopen("examples/c1/output.csv", "w");
-    char* output_header = "iteration,vaccination_log2diff,baseline,baseline_sd,wane_rate,residual_sd\n";
+    char* output_header = "iteration,vaccination_log2diff,baseline,wane_rate,residual_sd\n";
     fwrite(output_header, strlen(output_header), 1, output_csv);
 
     for (uint32_t iteration_index = 0; iteration_index < output.n_iterations - (output.n_burn - output.n_accepted_burn); iteration_index++) {
         SmlParameters* pars = output.out + iteration_index;
         char csv_row[64];
         int csv_row_len = snprintf(
-            csv_row, 64, "%d,%f,%f,%f,%f,%f\n",
+            csv_row, 64, "%d,%f,%f,%f,%f\n",
             iteration_index,
-            pars->vaccination_log2diff, pars->baseline, pars->baseline_sd, pars->wane_rate, pars->residual_sd
+            pars->vaccination_log2diff, pars->baseline, pars->wane_rate, pars->residual_sd
         );
         fwrite(csv_row, csv_row_len, 1, output_csv);
     }

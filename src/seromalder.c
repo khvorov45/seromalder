@@ -43,9 +43,8 @@ typedef union SmlParameters {
         double residual_sd;
         double vaccination_log2diff;
         double wane_rate;
-        double baseline_sd;
     };
-    double par[5];
+    double par[4];
 } SmlParameters;
 
 typedef struct SmlOutput {
@@ -92,9 +91,8 @@ typedef union SmlPriors {
         SmlDist residual_sd;
         SmlDist vaccination_log2diff;
         SmlDist wane_rate;
-        SmlDist baseline_sd;
     };
-    SmlDist dist[5];
+    SmlDist dist[4];
 } SmlPriors;
 
 typedef struct SmlStep {
