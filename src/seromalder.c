@@ -517,7 +517,7 @@ sml_mcmc(
             output->out[output->n_accepted_burn - 1] = pars_cur;
         }
 
-        double var_reduction = 0.0025;
+        double var_coef = 2.4 * 2.4 / step->dim;
         double epsilon = 0.000000001;
         if (iteration == output->n_burn) {
             if (output->n_accepted_burn < 10) {
@@ -543,7 +543,7 @@ sml_mcmc(
                             &step->par_means_cur,
                             index1, index2
                         );
-                        double cov_reduced = cov * var_reduction;
+                        double cov_reduced = cov * var_coef;
                         uint32_t var_index = index1 * step->dim + index2;
                         uint32_t var_index_symmetric = index2 * step->dim + index1;
                         step->var[var_index] = cov_reduced;
@@ -551,19 +551,55 @@ sml_mcmc(
                     }
                 }
                 for (uint32_t index = 0; index < step->dim; index++) {
-                    step->var[index * step->dim + index] += var_reduction * epsilon;
+                    step->var[index * step->dim + index] += var_coef * epsilon;
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
             }
         } else if (iteration > output->n_burn) {
+
+            uint32_t n_in_out_index = iteration - output->n_burn + output->n_accepted_burn;
+            SmlParameters* last_iter = output->out + n_in_out_index - 1;
+            double n_in_out = (double)n_in_out_index;
+
+            // NOTE(sen) Update current mean
             for (uint32_t index = 0; index < step->dim; index++) {
-                // NOTE(sen) Update current mean
                 double cur_mean = step->par_means_cur.par[index];
                 step->par_means_prev.par[index] = cur_mean;
-                uint32_t n_in_out = iteration - output->n_burn + output->n_accepted_burn;
                 step->par_means_cur.par[index] =
-                    cur_mean * (n_in_out - 1) / n_in_out + output->out[n_in_out - 1].par[index] / n_in_out;
+                    cur_mean * (n_in_out - 1) / n_in_out + last_iter->par[index] / n_in_out;
             }
+
+            // NOTE(sen) Update the covariance of proposal
+            for (uint32_t index1 = 0; index1 < step->dim; index1++) {
+                for (uint32_t index2 = index1; index2 < step->dim; index2++) {
+                    uint32_t var_index = index1 * step->dim + index2;
+                    uint32_t var_index_symmetric = index2 * step->dim + index1;
+                    double cov_cur = step->var[var_index];
+
+                    double prev_mean1 = step->par_means_prev.par[index1];
+                    double prev_mean2 = step->par_means_prev.par[index2];
+
+                    double cur_mean1 = step->par_means_cur.par[index1];
+                    double cur_mean2 = step->par_means_cur.par[index2];
+
+                    double cur_val1 = last_iter->par[index1];
+                    double cur_val2 = last_iter->par[index2];
+
+                    double term1 = (n_in_out - 2) / (n_in_out - 1) * cov_cur;
+                    double subterm =
+                        (n_in_out - 1) * prev_mean1 * prev_mean2 - n_in_out * cur_mean1 * cur_mean2 + cur_val1 * cur_val2;
+                    double term2 = var_coef / (n_in_out - 1) * subterm;
+
+                    double cov_updated = term1 + term2;
+
+                    step->var[var_index] = cov_updated;
+                    step->var[var_index_symmetric] = cov_updated;
+                }
+            }
+            for (uint32_t index = 0; index < step->dim; index++) {
+                step->var[index * step->dim + index] += var_coef / (n_in_out - 1) * epsilon;
+            }
+            sml_cholesky(step->var, step->chol, step->dim);
         }
     } // NOTE(sen) for (iteration)
 }
