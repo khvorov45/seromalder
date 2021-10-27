@@ -241,13 +241,19 @@ test_cov() {
     pars[1].par[1] = 5;
     pars[2].par[1] = 4;
 
-    double cov00 = sml_get_cov(pars, size, 0, 0);
-    double cov01 = sml_get_cov(pars, size, 0, 1);
-    double cov10 = sml_get_cov(pars, size, 1, 0);
-    double cov11 = sml_get_cov(pars, size, 1, 1);
+    SmlParameters means;
+    means.par[0] = sml_get_mean(pars, size, 0);
+    means.par[1] = sml_get_mean(pars, size, 1);
+
+    int32_t result_mean = means.par[0] == 2 && means.par[1] == 5;
+    printf("mean test: %d\n", result_mean);
+
+    double cov00 = sml_get_cov(pars, size, &means, 0, 0);
+    double cov01 = sml_get_cov(pars, size, &means, 0, 1);
+    double cov10 = sml_get_cov(pars, size, &means, 1, 0);
+    double cov11 = sml_get_cov(pars, size, &means, 1, 1);
 
     int32_t result = cov00 == 1 && cov01 == -1 && cov10 == -1 && cov11 == 1;
-
     printf("cov test: %d\n", result);
 }
 

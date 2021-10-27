@@ -101,6 +101,8 @@ typedef struct SmlStep {
     double* var;
     double* chol;
     double* std_norm;
+    SmlParameters par_means_cur;
+    SmlParameters par_means_prev;
 } SmlStep;
 
 SmlConstants
@@ -346,7 +348,7 @@ sml_log2_likelihood(SmlInput* input, SmlParameters* pars, SmlConstants* consts) 
     return log2_likelihood;
 }
 
-double sml_get_mean_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t par_index) {
+double sml_get_mean(SmlParameters* pars, uint64_t n_accept, uint32_t par_index) {
     double first_val = pars[0].par[par_index];
     double sum = first_val;
     for (uint32_t index = 1; index < n_accept; index++) {
@@ -358,9 +360,9 @@ double sml_get_mean_of_accepted(SmlParameters* pars, uint64_t n_accept, uint32_t
 }
 
 double
-sml_get_cov(SmlParameters* pars, uint64_t n_accept, uint32_t par_index1, uint32_t par_index2) {
-    double mean1 = sml_get_mean_of_accepted(pars, n_accept, par_index1);
-    double mean2 = sml_get_mean_of_accepted(pars, n_accept, par_index2);
+sml_get_cov(SmlParameters* pars, uint64_t n_accept, SmlParameters* means, uint32_t par_index1, uint32_t par_index2) {
+    double mean1 = means->par[par_index1];
+    double mean2 = means->par[par_index2];
     double first_val1 = pars[0].par[par_index1];
     double first_val2 = pars[0].par[par_index2];
     double sum_dev = (first_val1 - mean1) * (first_val2 - mean2);
@@ -529,10 +531,17 @@ sml_mcmc(
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
             } else {
+                for (uint32_t index = 0; index < step->dim; index++) {
+                    double par_mean = sml_get_mean(output->out, output->n_accepted_burn, index);
+                    step->par_means_cur.par[index] = par_mean;
+                    step->par_means_prev.par[index] = par_mean;
+                }
                 for (uint32_t index1 = 0; index1 < step->dim; index1++) {
                     for (uint32_t index2 = index1; index2 < step->dim; index2++) {
                         double cov = sml_get_cov(
-                            output->out, output->n_accepted_burn, index1, index2
+                            output->out, output->n_accepted_burn,
+                            &step->par_means_cur,
+                            index1, index2
                         );
                         double cov_reduced = cov * var_reduction;
                         uint32_t var_index = index1 * step->dim + index2;
@@ -545,6 +554,15 @@ sml_mcmc(
                     step->var[index * step->dim + index] += var_reduction * epsilon;
                 }
                 sml_cholesky(step->var, step->chol, step->dim);
+            }
+        } else if (iteration > output->n_burn) {
+            for (uint32_t index = 0; index < step->dim; index++) {
+                // NOTE(sen) Update current mean
+                double cur_mean = step->par_means_cur.par[index];
+                step->par_means_prev.par[index] = cur_mean;
+                uint32_t n_in_out = iteration - output->n_burn + output->n_accepted_burn;
+                step->par_means_cur.par[index] =
+                    cur_mean * (n_in_out - 1) / n_in_out + output->out[n_in_out - 1].par[index] / n_in_out;
             }
         }
     } // NOTE(sen) for (iteration)
