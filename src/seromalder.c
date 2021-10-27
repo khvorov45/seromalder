@@ -5,6 +5,8 @@
 
 #include "random_real.h"
 
+#define sml_array_count(arr) sizeof(arr) / sizeof(arr[0])
+
 typedef void* SmlAllocator(uint64_t size);
 
 typedef struct SmlInputTitre {
@@ -170,7 +172,7 @@ sml_log2_dist_pdf(double value, SmlDist dist) {
     double result;
     switch (dist.type) {
     case SmlDist_Normal: {
-        result = sml_log2_normal_pdf(value, dist.normal.sd, dist.normal.mean);
+        result = sml_log2_normal_pdf(value, dist.normal.mean, dist.normal.sd);
     } break;
     case SmlDist_NormalLeftTrunc: {
         if (value < dist.normal_left_trunc.min) {
@@ -292,8 +294,9 @@ sml_rbern(pcg64_random_t* rng, double prop) {
 double
 sml_log2_prior_prob(SmlParameters* pars, SmlPriors* priors) {
     double result = 0;
-    result += sml_log2_dist_pdf(pars->baseline, priors->baseline);
-    result += sml_log2_dist_pdf(pars->residual_sd, priors->residual_sd);
+    for (uint32_t index = 0; index < sml_array_count(priors->dist); ++index) {
+        result += sml_log2_dist_pdf(pars->par[index], priors->dist[index]);
+    }
     return result;
 }
 
