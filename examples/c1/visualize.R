@@ -9,6 +9,7 @@ input_plot <- input_extra %>%
   ggplot(aes(time, titre)) +
   theme_bw() +
   scale_y_log10("Titre", breaks = 5 * 2^(0:15)) +
+  geom_line(aes(group = pid), alpha = 0.1) +
   geom_point(alpha = 0.3, shape = 18)
 
 ggsave("examples/c1/input_plot.pdf", input_plot)
