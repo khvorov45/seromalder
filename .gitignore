@@ -1,3 +1,7 @@
 copy.sh
 *.pdf
 *.csv
+*.xls
+*.fasta
+.~lock*
+*.tsv

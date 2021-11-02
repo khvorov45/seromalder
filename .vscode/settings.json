@@ -4,6 +4,8 @@
     "clzll",
     "dists",
     "emin",
+    "exts",
+    "NYMC",
     "rbern",
     "rdist",
     "rorb",
@@ -14,6 +16,8 @@
     "rotr",
     "rprior",
     "seromalder",
+    "Serosolver",
+    "tsvtofasta",
     "xend",
     "xored",
     "yend"

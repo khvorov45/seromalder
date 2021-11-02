@@ -54,7 +54,7 @@ main() {
         individual->titres = malloc(individual->titre_count * sizeof(SmlInputTitre));
         double titre_times[3] = { 0, 14, 200 };
 
-        double random_intercept = sml_rnorm(&rng, 0, 0);
+        double random_intercept = sml_rnorm(&rng, 0, 1);
 
         for (uint64_t titre_index = 0;
             titre_index < individual->titre_count;
