@@ -57,3 +57,5 @@ write_tsv(cdc_fasta %>% select(meta, seq), "virus-distances/cdc-fasta.tsv", col_
 system("virus-distances/tsvtofasta.sh")
 
 system("virus-distances/align.sh")
+
+# NOTE(sen) The rest is in the python script - takes the alignment and produces the distances

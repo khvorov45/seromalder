@@ -94,9 +94,9 @@ def get_distances_to_vaccine_strains(sequences_by_node, distance_map, vaccine_st
 
 
 vaccine_run(
-    ["summary-measures/cdc-fasta-aligned.fasta"],
-    "summary-measures/distance-map.json",
-    "summary-measures/cdc-fasta-distances.json",
+    ["virus-distances/cdc-fasta-aligned.fasta"],
+    "virus-distances/distance-map.json",
+    "virus-distances/cdc-fasta-distances.json",
     [
         "EPI_ISL_165554|539576|A/Hong_Kong/4801/2014",
         "EPI_ISL_225834|780183|A/Singapore/INFIMH-16-0019/2016",
