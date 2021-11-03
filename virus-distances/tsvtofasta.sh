@@ -1,1 +1,1 @@
-seqkit tab2fx summary-measures/cdc-fasta.tsv > summary-measures/cdc-fasta.fasta
+seqkit tab2fx virus-distances/cdc-fasta.tsv > virus-distances/cdc-fasta.fasta

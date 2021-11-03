@@ -1,0 +1,5 @@
+Gisaid sequences come from
+/home/khvorova/vidrlwhoflu/Group/personnel/Arseniy/gisaid-data
+
+CDC data comes from
+/home/khvorova/vidrlwhoflu/Research/ab-landscape/data
