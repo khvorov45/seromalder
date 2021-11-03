@@ -1,11 +1,12 @@
 library(tidyverse)
 
-cdc_viruses <- read_csv("summary-measures/cdc-virus.csv")
-cdc_vaccine <- read_csv("summary-measures/cdc-vaccine.csv")
-cdc_obj1_participants <- read_csv("summary-measures/cdc-obj1-participant.csv")
-cdc_isolate_names <- read_csv("summary-measures/cdc-isolate-names.csv")
+cdc_viruses <- read_csv("data/cdc-virus.csv")
+cdc_vaccine <- read_csv("data/cdc-vaccine.csv")
+cdc_obj1_participants <- read_csv("data/cdc-obj1-participant.csv")
 
-cdc_virus_dist_json <- jsonlite::read_json("summary-measures/cdc-fasta-distances.json")
+cdc_isolate_names <- read_csv("virus-distances//cdc-isolate-names.csv")
+
+cdc_virus_dist_json <- jsonlite::read_json("virus-distances/cdc-fasta-distances.json")
 
 extract_isolate_name <- \(meta) str_replace(meta, "^.*\\|.*\\|(.*)$", "\\1")
 
@@ -32,7 +33,7 @@ cdc_virus_dist_extra <- cdc_virus_dist %>%
   ) %>%
   inner_join(cdc_vaccine, c("vaccine_virus" = "virus_full"))
 
-cdc_obj1_hi <- read_csv("summary-measures/cdc-obj1-hi.csv") %>%
+cdc_obj1_hi <- read_csv("data/cdc-obj1-hi.csv") %>%
   inner_join(cdc_obj1_participants, "pid") %>%
   inner_join(cdc_viruses, "virus_full") %>%
   left_join(cdc_vaccine %>% mutate(vaccine_strain = TRUE), c("study_year", "virus_full")) %>%
