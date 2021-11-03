@@ -3,7 +3,34 @@ library(tidyverse)
 cdc_viruses <- read_csv("summary-measures/cdc-virus.csv")
 cdc_vaccine <- read_csv("summary-measures/cdc-vaccine.csv")
 cdc_obj1_participants <- read_csv("summary-measures/cdc-obj1-participant.csv")
-cdc_virus_distance <- read_csv("summary-measures/cdc-virus-distances.csv")
+cdc_isolate_names <- read_csv("summary-measures/cdc-isolate-names.csv")
+
+cdc_virus_dist_json <- jsonlite::read_json("summary-measures/cdc-fasta-distances.json")
+
+extract_isolate_name <- \(meta) str_replace(meta, "^.*\\|.*\\|(.*)$", "\\1")
+
+cdc_virus_dist <- imap_dfr(cdc_virus_dist_json$nodes, function(node_value, node_name) {
+  imap_dfr(node_value$distance, function(distance, node2_name) {
+    tibble(
+      vaccine_isolate_name = extract_isolate_name(node_name),
+      isolate_name = extract_isolate_name(node2_name),
+      distance
+    )
+  })
+})
+
+cdc_virus_dist_extra <- cdc_virus_dist %>%
+  inner_join(
+    cdc_isolate_names %>%
+      select(vaccine_isolate_name = fasta_virus_name, vaccine_virus = virus_full),
+    c("vaccine_isolate_name")
+  ) %>%
+  inner_join(
+    cdc_isolate_names %>%
+      select(isolate_name = fasta_virus_name, virus_full),
+    c("isolate_name")
+  ) %>%
+  inner_join(cdc_vaccine, c("vaccine_virus" = "virus_full"))
 
 cdc_obj1_hi <- read_csv("summary-measures/cdc-obj1-hi.csv") %>%
   inner_join(cdc_obj1_participants, "pid") %>%
@@ -13,7 +40,7 @@ cdc_obj1_hi <- read_csv("summary-measures/cdc-obj1-hi.csv") %>%
   group_by(pid, timepoint) %>%
   mutate(distance_from_vaccine = abs(virus_year - virus_year[vaccine_strain])) %>%
   ungroup() %>%
-  left_join(cdc_virus_distance, c("virus_full", "study_year"))
+  left_join(cdc_virus_dist_extra, c("virus_full", "study_year"))
 
 cdc_obj1_ratios <- cdc_obj1_hi %>%
   filter(timepoint %in% c("Pre-vax", "Post-vax")) %>%
@@ -24,10 +51,10 @@ cdc_obj1_ratios <- cdc_obj1_hi %>%
 cdc_obj1_ratios %>% arrange(desc(post_pre_ratio))
 
 cdc_obj1_ratios_plot <- cdc_obj1_ratios %>%
-  filter(!is.na(post_pre_ratio), !is.na(vaccine_diff_count), vaccine_diff_count < 500) %>%
+  filter(!is.na(post_pre_ratio), !is.na(distance)) %>%
   mutate(
     y_pos = exp(rnorm(n(), log(post_pre_ratio), 0.1)),
-    x_pos = rnorm(n(), vaccine_diff_count, 0.5)
+    x_pos = rnorm(n(), distance, 0.5)
   ) %>%
   ggplot(aes(x_pos, y_pos)) +
   theme_bw() +

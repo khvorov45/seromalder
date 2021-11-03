@@ -10,11 +10,7 @@ DOA:
 
 What's a good measure of distance that relates to immunogenicity?
 
-Years show a pattern kind of.
+Nexstrain's augur has the functionality to work out distances. Can also weight
+them (presumably give antigenic sites higher weights)
 
-Count of nucleotide differences doesn't show much of a pattern.
-
-Try:
-
-- AA differences instead of nucleotides
-- Differences only at antigenic sites
+Need to get passage information from gisaid

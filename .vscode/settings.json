@@ -5,6 +5,9 @@
     "dists",
     "emin",
     "exts",
+    "imap",
+    "INFIMH",
+    "jsonlite",
     "NYMC",
     "rbern",
     "rdist",
@@ -26,5 +29,6 @@
     "emmintrin.h": "c",
     "immintrin.h": "c",
     "stddef.h": "c"
-  }
+  },
+  "python.linting.enabled": false
 }

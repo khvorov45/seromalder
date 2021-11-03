@@ -5,3 +5,4 @@ copy.sh
 *.fasta
 .~lock*
 *.tsv
+*.json
